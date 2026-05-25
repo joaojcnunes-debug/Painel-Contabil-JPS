@@ -1,7 +1,25 @@
-import { cookies } from "next/headers";
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
+import { Check, Edit2, Plus, Sparkles, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/Button";
+import { inputClass } from "@/components/ui/Field";
+import { ObrigacaoFormModal } from "@/components/obrigacoes/ObrigacaoFormModal";
+import { GeradorMesModal } from "@/components/obrigacoes/GeradorMesModal";
+import { useClientes } from "@/lib/hooks/useClientes";
+import {
+  useObrigacoes,
+  useObrigacoesCatalogo,
+  type ObrigacaoComJoin,
+} from "@/lib/hooks/useObrigacoes";
+import { useUserStore } from "@/lib/store";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
+import type { Obrigacao } from "@/lib/supabase/types";
 
 const STATUS_STYLE: Record<string, string> = {
   PENDENTE: "bg-gray-100 text-gray-700",
@@ -11,19 +29,60 @@ const STATUS_STYLE: Record<string, string> = {
   DISPENSADA: "bg-gray-100 text-gray-500",
 };
 
-export default async function ObrigacoesPage() {
-  const cookieStore = await cookies();
-  const supabase = createSupabaseServerClient({
-    getAll: () => cookieStore.getAll(),
-    set: (name, value, options) => cookieStore.set(name, value, options),
+function competenciaAtual() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export default function ObrigacoesPage() {
+  const user = useUserStore((s) => s.user);
+  const isAdmin = user?.perfil === "Admin";
+
+  const [competencia, setCompetencia] = useState(competenciaAtual());
+  const [status, setStatus] = useState("");
+  const [idCliente, setIdCliente] = useState("");
+
+  const { data: obrigacoes = [], isLoading } = useObrigacoes({
+    competencia,
+    status: status || undefined,
+    idCliente: idCliente || undefined,
   });
-  const { data } = await supabase
-    .from("obrigacoes")
-    .select(
-      "*, clientes(razao_social), obrigacoes_catalogo(sigla, nome)"
-    )
-    .order("data_vencimento", { ascending: true })
-    .limit(100);
+  const { data: clientes = [] } = useClientes();
+  const { data: catalogo = [] } = useObrigacoesCatalogo();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Obrigacao | null>(null);
+  const [gerOpen, setGerOpen] = useState(false);
+
+  const qc = useQueryClient();
+  const marcarEntregue = useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("obrigacoes")
+        .update({
+          status: "ENTREGUE",
+          data_entrega: new Date().toISOString().slice(0, 10),
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("id_obrigacao", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["obrigacoes"] });
+      toast.success("Marcada como entregue");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function novo() {
+    setEditing(null);
+    setFormOpen(true);
+  }
+  function editar(o: ObrigacaoComJoin) {
+    setEditing(o);
+    setFormOpen(true);
+  }
 
   return (
     <div>
@@ -31,12 +90,82 @@ export default async function ObrigacoesPage() {
         title="Obrigações"
         subtitle="Calendário fiscal dos clientes"
         actions={
-          <button className="px-4 py-2 bg-verde-primary text-white rounded-lg text-sm font-medium hover:bg-verde-accent">
-            + Lançar obrigação
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                href="/obrigacoes/catalogo"
+                className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+              >
+                <Settings2 size={14} /> Catálogo
+              </Link>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => setGerOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Sparkles size={16} /> Gerar mês
+            </Button>
+            <Button onClick={novo} className="flex items-center gap-2">
+              <Plus size={16} /> Nova obrigação
+            </Button>
+          </div>
         }
       />
 
+      {/* Filtros */}
+      <div className="bg-white border border-card-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="block text-xs uppercase text-gray-500 mb-1">
+            Competência
+          </label>
+          <input
+            type="month"
+            className={inputClass}
+            value={competencia}
+            onChange={(e) => setCompetencia(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs uppercase text-gray-500 mb-1">
+            Status
+          </label>
+          <select
+            className={inputClass}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">Todos</option>
+            <option value="PENDENTE">Pendente</option>
+            <option value="EM_ANDAMENTO">Em andamento</option>
+            <option value="ENTREGUE">Entregue</option>
+            <option value="ATRASADA">Atrasada</option>
+            <option value="DISPENSADA">Dispensada</option>
+          </select>
+        </div>
+        <div className="min-w-[220px]">
+          <label className="block text-xs uppercase text-gray-500 mb-1">
+            Cliente
+          </label>
+          <select
+            className={inputClass}
+            value={idCliente}
+            onChange={(e) => setIdCliente(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {clientes.map((c) => (
+              <option key={c.id_cliente} value={c.id_cliente}>
+                {c.razao_social}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="ml-auto text-sm text-gray-500">
+          {obrigacoes.length} resultado{obrigacoes.length !== 1 && "s"}
+        </div>
+      </div>
+
+      {/* Lista */}
       <div className="bg-white border border-card-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600 text-left text-xs uppercase">
@@ -46,48 +175,89 @@ export default async function ObrigacoesPage() {
               <th className="px-4 py-3">Competência</th>
               <th className="px-4 py-3">Vencimento</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 w-24"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-card-border">
-            {(data ?? []).map((o: Record<string, unknown>) => {
-              const cliente = (o.clientes as { razao_social: string } | null)?.razao_social ?? "—";
-              const cat = o.obrigacoes_catalogo as
-                | { sigla: string; nome: string }
-                | null;
-              const status = (o.status as string) ?? "PENDENTE";
-              return (
-                <tr key={o.id_obrigacao as string} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-900 font-medium">{cliente}</td>
+            {isLoading && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  Carregando…
+                </td>
+              </tr>
+            )}
+            {!isLoading &&
+              obrigacoes.map((o) => (
+                <tr key={o.id_obrigacao} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-900 font-medium">
+                    {o.clientes?.razao_social ?? "—"}
+                  </td>
                   <td className="px-4 py-3 text-gray-700">
                     <span className="font-mono text-xs text-verde-dark mr-2">
-                      {cat?.sigla ?? "—"}
+                      {o.obrigacoes_catalogo?.sigla ?? "—"}
                     </span>
-                    {cat?.nome}
+                    {o.obrigacoes_catalogo?.nome}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{o.competencia as string}</td>
+                  <td className="px-4 py-3 text-gray-600">{o.competencia}</td>
                   <td className="px-4 py-3 text-gray-600">
-                    {formatDate(o.data_vencimento as string)}
+                    {formatDate(o.data_vencimento)}
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`text-xs px-2 py-1 rounded-full ${STATUS_STYLE[status] ?? "bg-gray-100"}`}
+                      className={`text-xs px-2 py-1 rounded-full ${STATUS_STYLE[o.status] ?? "bg-gray-100"}`}
                     >
-                      {status}
+                      {o.status}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      {o.status !== "ENTREGUE" && (
+                        <button
+                          onClick={() => marcarEntregue.mutate(o.id_obrigacao)}
+                          disabled={marcarEntregue.isPending}
+                          className="p-1.5 rounded hover:bg-verde-light text-verde-dark"
+                          title="Marcar como entregue"
+                          aria-label="Marcar como entregue"
+                        >
+                          <Check size={15} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => editar(o)}
+                        className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-verde-dark"
+                        title="Editar"
+                        aria-label="Editar"
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              );
-            })}
-            {(data ?? []).length === 0 && (
+              ))}
+            {!isLoading && obrigacoes.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-500">
-                  Nenhuma obrigação lançada.
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
+                  Nenhuma obrigação lançada para esses filtros.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+
+      <ObrigacaoFormModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        obrigacao={editing}
+        clientes={clientes}
+        catalogo={catalogo}
+      />
+      <GeradorMesModal
+        open={gerOpen}
+        onClose={() => setGerOpen(false)}
+        clientes={clientes}
+        catalogo={catalogo}
+      />
     </div>
   );
 }
