@@ -13,6 +13,7 @@ import {
   Building2,
   FileText,
   Receipt,
+  ShieldCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -22,12 +23,15 @@ import { Logo } from "@/components/ui/Logo";
 
 type Item = { href: string; label: string; icon: React.ElementType };
 
-const ITEMS_INTERNO: Item[] = [
+type ItemWithGuard = Item & { adminOnly?: boolean };
+
+const ITEMS_INTERNO: ItemWithGuard[] = [
   { href: "/inicio", label: "Início", icon: LayoutDashboard },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/obrigacoes", label: "Obrigações", icon: CalendarCheck },
   { href: "/documentos", label: "Documentos", icon: FolderUp },
   { href: "/honorarios", label: "Honorários", icon: Wallet },
+  { href: "/usuarios", label: "Usuários", icon: ShieldCheck, adminOnly: true },
   { href: "/config", label: "Configurações", icon: Settings },
 ];
 
@@ -44,7 +48,10 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
   const user = useUserStore((s) => s.user);
   const logout = useUserStore((s) => s.logout);
 
-  const items = variant === "interno" ? ITEMS_INTERNO : ITEMS_PORTAL;
+  const items =
+    variant === "interno"
+      ? ITEMS_INTERNO.filter((it) => !it.adminOnly || user?.perfil === "Admin")
+      : ITEMS_PORTAL;
 
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
