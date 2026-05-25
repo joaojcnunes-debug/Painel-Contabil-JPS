@@ -3,10 +3,10 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
-import { LogIn } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/lib/store";
 import type { Usuario } from "@/lib/supabase/types";
+import { Logo } from "@/components/ui/Logo";
 
 export default function LoginPage() {
   return (
@@ -74,13 +74,15 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-card-border p-8">
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 rounded-xl bg-verde-primary flex items-center justify-center text-white mb-3">
-            <LogIn size={28} />
-          </div>
-          <h1 className="text-2xl font-bold text-verde-dark">Painel Contábil</h1>
-          <p className="text-sm text-gray-500">Chabra Contabilidade</p>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-md border border-card-border p-8">
+        <div className="flex flex-col items-center mb-7">
+          <Logo size={120} />
+          <h1 className="mt-5 font-serif text-2xl font-bold text-verde-dark tracking-wide">
+            JSP Contabilidade
+          </h1>
+          <p className="text-[11px] uppercase tracking-[0.32em] text-gold mt-1">
+            Personalizada
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

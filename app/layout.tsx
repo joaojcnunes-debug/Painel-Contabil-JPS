@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Painel Contábil — Chabra",
+  title: "JSP Contabilidade Personalizada",
   description:
-    "Sistema de gestão para escritório de contabilidade: clientes, obrigações, documentos e honorários.",
+    "Sistema da JSP Contabilidade Personalizada: clientes, obrigações, documentos e honorários.",
 };
 
 export default function RootLayout({

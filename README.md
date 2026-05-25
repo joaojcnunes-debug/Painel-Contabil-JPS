@@ -1,9 +1,9 @@
-# Painel Contábil Chabra
+# JSP Contabilidade Personalizada — Painel
 
-Sistema interno para escritório de contabilidade — gestão de clientes,
-calendário de obrigações fiscais, recebimento de documentos e honorários.
-Inclui portal externo para os clientes acompanharem suas obrigações e
-documentos.
+Sistema interno do escritório **JSP Contabilidade Personalizada** —
+gestão de clientes, calendário de obrigações fiscais, recebimento de
+documentos e honorários. Inclui portal externo para os clientes
+acompanharem suas obrigações e documentos.
 
 ## Stack
 

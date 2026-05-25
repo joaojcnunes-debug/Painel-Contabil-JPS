@@ -1,18 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-verde-primary: #006B54;
-  --color-verde-accent: #00835A;
-  --color-verde-dark: #1e4d28;
-  --color-verde-light: #e8f5e9;
-  --color-verde-border: #c8e6c9;
-  --color-red-alert: #D32F2F;
-  --color-amber-warning: #d97706;
-  --color-app-bg: #f0f7f0;
-  --color-card-border: #e5e7eb;
+  /* Paleta JSP — deep olive + brass (timbre institucional). */
+  --color-verde-primary: #4A5326;   /* deep olive — botões/links */
+  --color-verde-accent: #5D6932;    /* oliva acento — hover */
+  --color-verde-dark: #2A3014;      /* oliva quase preto — títulos */
+  --color-verde-light: #EAEDDA;     /* chip/badge claro */
+  --color-verde-border: #CED3AC;    /* bordas suaves */
+  --color-gold: #A88440;            /* brass — detalhes e divisórias */
+  --color-gold-light: #D9B776;
+  --color-red-alert: #B5462A;       /* tijolo — bate com paleta */
+  --color-amber-warning: #A88440;
+  --color-app-bg: #F4EFE0;          /* linho — background da aplicação */
+  --color-card-border: #E3DBC4;     /* bordas no tom do linho */
 
   --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
 }
 
 :root {
