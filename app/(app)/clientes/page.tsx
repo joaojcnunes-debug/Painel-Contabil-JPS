@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Edit2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -73,8 +74,13 @@ export default function ClientesPage() {
             {!isLoading &&
               clientes.map((c) => (
                 <tr key={c.id_cliente} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">
-                    {c.razao_social}
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/clientes/${c.id_cliente}`}
+                      className="font-medium text-gray-900 hover:text-verde-dark"
+                    >
+                      {c.razao_social}
+                    </Link>
                     {c.nome_fantasia && (
                       <div className="text-xs text-gray-500">{c.nome_fantasia}</div>
                     )}
