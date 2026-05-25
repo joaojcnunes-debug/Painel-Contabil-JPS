@@ -8,7 +8,12 @@
 ALTER TABLE public.usuarios
     DROP CONSTRAINT IF EXISTS usuarios_id_usuario_fkey;
 
--- 2) Muda id_usuario de UUID para TEXT (custom IDs USR-xxx)
+-- 2) Drop policy que depende de id_usuario antes do ALTER TYPE
+DROP POLICY IF EXISTS usuarios_select ON public.usuarios;
+DROP POLICY IF EXISTS usuarios_insert ON public.usuarios;
+DROP POLICY IF EXISTS usuarios_update ON public.usuarios;
+
+-- 3) Muda id_usuario de UUID para TEXT (custom IDs USR-xxx)
 ALTER TABLE public.usuarios
     ALTER COLUMN id_usuario TYPE TEXT USING id_usuario::TEXT;
 
@@ -47,13 +52,18 @@ AS $$
         FALSE)
 $$;
 
--- 5) Atualiza policy de usuarios pra usar email
-DROP POLICY IF EXISTS usuarios_select ON public.usuarios;
+-- 5) Recria policies de usuarios usando email
 CREATE POLICY usuarios_select ON public.usuarios FOR SELECT
     USING (
         LOWER(email) = LOWER(auth.jwt() ->> 'email')
         OR public.fn_perfil_atual() = 'Admin'
     );
+
+CREATE POLICY usuarios_insert ON public.usuarios FOR INSERT
+    WITH CHECK (public.fn_perfil_atual() = 'Admin');
+
+CREATE POLICY usuarios_update ON public.usuarios FOR UPDATE
+    USING (public.fn_perfil_atual() = 'Admin');
 
 -- 6) Insere o primeiro Admin (joaojcnunes@gmail.com)
 --    id_usuario custom, NÃO precisa bater com auth.users.id
