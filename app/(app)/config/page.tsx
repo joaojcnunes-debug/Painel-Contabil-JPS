@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Save, Settings2, ShieldCheck } from "lucide-react";
+import { MailCheck, Save, Send, Settings2, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
@@ -17,6 +17,60 @@ export default function ConfigPage() {
   const isAdmin = user?.perfil === "Admin";
   const { data: cfg, isLoading } = useConfiguracao();
   const qc = useQueryClient();
+
+  const [emailTeste, setEmailTeste] = useState("");
+
+  const testarAlertas = useMutation({
+    mutationFn: async (modo: "dry_run" | "test_to" | "real") => {
+      const supabase = createSupabaseBrowserClient();
+      const body: Record<string, unknown> = {};
+      if (modo === "dry_run") body.dry_run = true;
+      if (modo === "test_to") {
+        if (!emailTeste.trim()) throw new Error("Informe o e-mail de teste");
+        body.to = emailTeste.trim();
+      }
+      const { data, error } = await supabase.functions.invoke(
+        "enviar-alertas-vencimento",
+        { body }
+      );
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.text === "function") {
+            const txt = await ctx.text();
+            const j = JSON.parse(txt);
+            if (j?.error) msg = j.error;
+          }
+        } catch {
+          /* mantém msg padrão */
+        }
+        throw new Error(msg);
+      }
+      return data as {
+        ok: boolean;
+        modo: string;
+        enviados: number;
+        sem_email: number;
+        falhas: Array<{ cliente: string; erro: string }>;
+        preview?: Array<{ cliente: string; destinatario: string; qtd: number }>;
+        mensagem?: string;
+      };
+    },
+    onSuccess: (r) => {
+      if (r.mensagem) {
+        toast.success(r.mensagem);
+      } else {
+        toast.success(
+          `${r.enviados} email${r.enviados === 1 ? "" : "s"} ${r.modo === "dry_run" ? "(simulação, nada enviado)" : "enviado" + (r.enviados === 1 ? "" : "s")}. ${r.sem_email ? `${r.sem_email} cliente${r.sem_email === 1 ? "" : "s"} sem e-mail.` : ""}`
+        );
+      }
+      if (r.falhas && r.falhas.length > 0) {
+        toast.error(`${r.falhas.length} falha${r.falhas.length === 1 ? "" : "s"}: ${r.falhas[0].erro}`);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [nome, setNome] = useState("");
   const [razao, setRazao] = useState("");
@@ -233,16 +287,73 @@ export default function ConfigPage() {
             </div>
           </div>
 
+          <div className="bg-white border border-card-border rounded-xl p-5">
+            <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3 flex items-center gap-2">
+              <MailCheck size={14} className="text-gold" /> Alertas por e-mail
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Dispara o envio de alertas pra clientes com obrigações vencendo
+              nos próximos 3 dias (ou já vencidas).
+            </p>
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => testarAlertas.mutate("dry_run")}
+                disabled={testarAlertas.isPending}
+                className="w-full flex items-center justify-center gap-2 text-xs"
+              >
+                <Send size={12} /> Simular (não envia)
+              </Button>
+              <div className="flex gap-2">
+                <input
+                  className={`${inputClass} text-xs flex-1`}
+                  value={emailTeste}
+                  onChange={(e) => setEmailTeste(e.target.value)}
+                  placeholder="seu-email@..."
+                  type="email"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => testarAlertas.mutate("test_to")}
+                  disabled={testarAlertas.isPending || !emailTeste.trim()}
+                  className="text-xs"
+                >
+                  Teste
+                </Button>
+              </div>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Enviar e-mails REAIS para todos os clientes com vencimentos próximos?"
+                    )
+                  ) {
+                    testarAlertas.mutate("real");
+                  }
+                }}
+                disabled={testarAlertas.isPending}
+                className="w-full flex items-center justify-center gap-2 text-xs"
+              >
+                <Send size={12} />
+                {testarAlertas.isPending ? "Enviando..." : "Enviar agora"}
+              </Button>
+            </div>
+            <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+              Precisa da Edge Function <code>enviar-alertas-vencimento</code>{" "}
+              deployada + secret <code>RESEND_API_KEY</code> configurado.
+            </p>
+          </div>
+
           <div className="bg-verde-light border border-verde-border rounded-xl p-5 text-sm text-verde-dark">
             <h3 className="font-serif text-sm font-semibold mb-2">
               Pré-requisitos do banco
             </h3>
-            <p className="text-xs text-verde-dark/80 mb-2">
-              Pra essa tela funcionar, a migration <code>02_configuracoes.sql</code> precisa ter rodado no SQL Editor do Supabase.
-            </p>
             <p className="text-xs text-verde-dark/80">
-              Se você ver erro &quot;table not found&quot; ao salvar, rode o arquivo em
-              {" "}<code>supabase/migrations/02_configuracoes.sql</code>.
+              Migrations <code>02_configuracoes.sql</code> precisa estar
+              aplicada no Supabase pra essa tela funcionar.
             </p>
           </div>
         </aside>
