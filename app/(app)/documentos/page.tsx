@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { Download, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
 import { DocumentoUploadModal } from "@/components/documentos/DocumentoUploadModal";
 import { useClientes } from "@/lib/hooks/useClientes";
@@ -14,6 +15,7 @@ import { useDocumentos } from "@/lib/hooks/useDocumentos";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
+import { csvData } from "@/lib/csv";
 import type { Documento, StatusDocumento } from "@/lib/supabase/types";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -114,9 +116,30 @@ function DocumentosInner() {
         title="Documentos"
         subtitle="Arquivos enviados pela equipe ou recebidos do portal cliente"
         actions={
-          <Button onClick={() => setUploadOpen(true)} className="flex items-center gap-2">
-            <Upload size={16} /> Enviar documento
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportCsvButton
+              rows={docs}
+              filename={`documentos-${new Date().toISOString().slice(0, 10)}.csv`}
+              columns={[
+                { header: "Cliente", value: (d) => d.clientes?.razao_social },
+                { header: "Tipo", value: (d) => d.tipo },
+                { header: "Arquivo", value: (d) => d.arquivo_nome },
+                { header: "Descrição", value: (d) => d.descricao },
+                { header: "Competência", value: (d) => d.competencia },
+                { header: "Origem", value: (d) => d.origem },
+                { header: "Tamanho (KB)", value: (d) =>
+                  d.tamanho_bytes != null
+                    ? (Number(d.tamanho_bytes) / 1024).toFixed(1).replace(".", ",")
+                    : ""
+                },
+                { header: "Enviado em", value: (d) => csvData(d.created_at) },
+                { header: "Status", value: (d) => d.status },
+              ]}
+            />
+            <Button onClick={() => setUploadOpen(true)} className="flex items-center gap-2">
+              <Upload size={16} /> Enviar documento
+            </Button>
+          </div>
         }
       />
 

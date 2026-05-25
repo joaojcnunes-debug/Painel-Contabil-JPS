@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { Check, Edit2, Plus, Sparkles, X } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
 import { FaturaFormModal } from "@/components/faturas/FaturaFormModal";
 import { GeradorFaturasModal } from "@/components/faturas/GeradorFaturasModal";
@@ -15,6 +16,7 @@ import { useFaturas, type FaturaComCliente } from "@/lib/hooks/useFaturas";
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatBRL, formatDate } from "@/lib/utils";
+import { csvData, csvMoeda } from "@/lib/csv";
 import type { Fatura, StatusFatura } from "@/lib/supabase/types";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -129,6 +131,19 @@ function HonorariosInner() {
         subtitle="Cobrança recorrente e faturas"
         actions={
           <div className="flex items-center gap-2">
+            <ExportCsvButton
+              rows={faturas}
+              filename={`faturas-${competencia || "geral"}.csv`}
+              columns={[
+                { header: "Cliente", value: (f) => f.clientes?.razao_social },
+                { header: "Competência", value: (f) => f.competencia },
+                { header: "Vencimento", value: (f) => csvData(f.data_vencimento) },
+                { header: "Pagamento", value: (f) => csvData(f.data_pagamento) },
+                { header: "Valor (R$)", value: (f) => csvMoeda(Number(f.valor)) },
+                { header: "Status", value: (f) => f.status },
+                { header: "Descrição", value: (f) => f.descricao },
+              ]}
+            />
             <Button
               variant="secondary"
               onClick={() => setGerOpen(true)}

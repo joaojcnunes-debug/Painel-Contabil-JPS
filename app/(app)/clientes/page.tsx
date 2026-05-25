@@ -5,9 +5,11 @@ import Link from "next/link";
 import { Edit2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { ClienteFormModal } from "@/components/clientes/ClienteFormModal";
 import { useClientes } from "@/lib/hooks/useClientes";
 import { formatCNPJ, formatBRL } from "@/lib/utils";
+import { csvData, csvMoeda } from "@/lib/csv";
 import type { Cliente } from "@/lib/supabase/types";
 
 const REGIME_LABEL: Record<string, string> = {
@@ -45,9 +47,32 @@ export default function ClientesPage() {
         title="Clientes"
         subtitle="Carteira do escritório"
         actions={
-          <Button onClick={novo} className="flex items-center gap-2">
-            <Plus size={16} /> Novo cliente
-          </Button>
+          <div className="flex items-center gap-2">
+            <ExportCsvButton
+              rows={clientes}
+              filename={`clientes-${new Date().toISOString().slice(0, 10)}.csv`}
+              columns={[
+                { header: "Razão social", value: (c) => c.razao_social },
+                { header: "Nome fantasia", value: (c) => c.nome_fantasia },
+                { header: "CNPJ", value: (c) => formatCNPJ(c.cnpj) },
+                { header: "Regime", value: (c) => c.regime },
+                { header: "Atividade", value: (c) => c.atividade_principal },
+                {
+                  header: "Honorário (R$)",
+                  value: (c) => csvMoeda(c.honorario_mensal),
+                },
+                { header: "Dia vencto", value: (c) => c.dia_vencimento },
+                {
+                  header: "Início contrato",
+                  value: (c) => csvData(c.inicio_contrato),
+                },
+                { header: "Status", value: (c) => c.status },
+              ]}
+            />
+            <Button onClick={novo} className="flex items-center gap-2">
+              <Plus size={16} /> Novo cliente
+            </Button>
+          </div>
         }
       />
 

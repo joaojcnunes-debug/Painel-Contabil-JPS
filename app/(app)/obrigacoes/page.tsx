@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { CalendarDays, Check, Edit2, Plus, Sparkles, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
 import { ObrigacaoFormModal } from "@/components/obrigacoes/ObrigacaoFormModal";
 import { GeradorMesModal } from "@/components/obrigacoes/GeradorMesModal";
@@ -20,6 +21,7 @@ import {
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
+import { csvData } from "@/lib/csv";
 import type { Obrigacao } from "@/lib/supabase/types";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -101,6 +103,21 @@ function ObrigacoesInner() {
         subtitle="Calendário fiscal dos clientes"
         actions={
           <div className="flex items-center gap-2">
+            <ExportCsvButton
+              rows={obrigacoes}
+              filename={`obrigacoes-${competencia || "geral"}.csv`}
+              columns={[
+                { header: "Cliente", value: (o) => o.clientes?.razao_social },
+                { header: "Sigla", value: (o) => o.obrigacoes_catalogo?.sigla },
+                { header: "Obrigação", value: (o) => o.obrigacoes_catalogo?.nome },
+                { header: "Esfera", value: (o) => o.obrigacoes_catalogo?.esfera },
+                { header: "Competência", value: (o) => o.competencia },
+                { header: "Vencimento", value: (o) => csvData(o.data_vencimento) },
+                { header: "Entrega", value: (o) => csvData(o.data_entrega) },
+                { header: "Status", value: (o) => o.status },
+                { header: "Responsável", value: (o) => o.responsavel },
+              ]}
+            />
             <Link
               href={`/obrigacoes/calendario${idCliente ? `?cliente=${idCliente}` : ""}`}
               className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
