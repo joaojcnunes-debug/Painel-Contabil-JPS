@@ -28,3 +28,13 @@ export function formatDate(iso: string | null | undefined): string {
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");
 }
+
+// Gera ID estável formato PREFIXO-XXXXXXXX (8 hex). Mesma assinatura
+// do helper de Painel SST — usado em todas as tabelas com PK TEXT.
+export function gerarId(prefixo = "ID"): string {
+  const hex = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+  return `${prefixo}-${hex}`;
+}

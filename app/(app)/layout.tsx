@@ -22,7 +22,7 @@ export default async function InternoLayout({
   const { data: usuarioData } = await supabase
     .from("usuarios")
     .select("perfil")
-    .eq("id_usuario", user.id)
+    .ilike("email", user.email ?? "")
     .single();
   const usuario = usuarioData as { perfil: string } | null;
 

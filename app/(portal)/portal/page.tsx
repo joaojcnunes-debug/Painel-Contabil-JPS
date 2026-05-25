@@ -15,7 +15,7 @@ export default async function PortalInicio() {
   const { data: usuarioData } = await supabase
     .from("usuarios")
     .select("id_cliente, nome")
-    .eq("id_usuario", user!.id)
+    .ilike("email", user!.email ?? "")
     .single();
   const usuario = usuarioData as
     | { id_cliente: string | null; nome: string }

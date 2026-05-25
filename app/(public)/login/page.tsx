@@ -40,10 +40,11 @@ function LoginForm() {
         return;
       }
 
+      const emailLower = (data.user.email ?? email).trim().toLowerCase();
       const { data: usuarioData, error: errUser } = await supabase
         .from("usuarios")
         .select("*")
-        .eq("id_usuario", data.user.id)
+        .ilike("email", emailLower)
         .single();
       const usuario = usuarioData as Usuario | null;
 

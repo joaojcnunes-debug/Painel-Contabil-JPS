@@ -4,9 +4,14 @@
 -- Idempotente (CREATE ... IF NOT EXISTS / DROP POLICY IF EXISTS).
 -- ============================================================
 
--- ─── usuarios (espelha auth.users com perfil + vínculo cliente) ──────────────
+-- ─── usuarios — perfil interno do app (NÃO referencia auth.users por FK).
+-- Link com Supabase Auth é via coluna `email` (igual padrão do Painel SST):
+-- 1) signUp() cria a entrada em auth.users
+-- 2) INSERT em public.usuarios com id_usuario custom (ex.: 'USR-A1B2C3D4')
+-- 3) Login: signInWithPassword() → busca usuarios por email
+-- Vantagem: sem chicken/egg de FK no 1º admin; permite criar usuário pela app.
 CREATE TABLE IF NOT EXISTS public.usuarios (
-    id_usuario UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    id_usuario TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
     nome TEXT NOT NULL,
     perfil TEXT NOT NULL CHECK (perfil IN ('Admin','Contador','Assistente','Cliente')),
@@ -16,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
 );
 
 CREATE INDEX IF NOT EXISTS idx_usuarios_cliente ON public.usuarios(id_cliente);
+CREATE INDEX IF NOT EXISTS idx_usuarios_email ON public.usuarios(LOWER(email));
 
 -- ─── clientes (empresas atendidas pelo escritório) ───────────────────────────
 CREATE TABLE IF NOT EXISTS public.clientes (
@@ -150,13 +156,15 @@ ALTER TABLE public.obrigacoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.documentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.faturas ENABLE ROW LEVEL SECURITY;
 
--- Helpers
+-- Helpers — lookup pelo e-mail do JWT (auth.jwt() ->> 'email'),
+-- não por auth.uid(), pois usuarios.id_usuario é custom (não bate com auth).
 CREATE OR REPLACE FUNCTION public.fn_perfil_atual()
 RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
-    SELECT perfil FROM public.usuarios WHERE id_usuario = auth.uid()
+    SELECT perfil FROM public.usuarios
+    WHERE LOWER(email) = LOWER(auth.jwt() ->> 'email')
 $$;
 
 CREATE OR REPLACE FUNCTION public.fn_cliente_atual()
@@ -164,7 +172,8 @@ RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
-    SELECT id_cliente FROM public.usuarios WHERE id_usuario = auth.uid()
+    SELECT id_cliente FROM public.usuarios
+    WHERE LOWER(email) = LOWER(auth.jwt() ->> 'email')
 $$;
 
 CREATE OR REPLACE FUNCTION public.fn_is_equipe()
@@ -174,14 +183,18 @@ SET search_path = public
 AS $$
     SELECT COALESCE(
         (SELECT perfil IN ('Admin','Contador','Assistente')
-           FROM public.usuarios WHERE id_usuario = auth.uid()),
+           FROM public.usuarios
+           WHERE LOWER(email) = LOWER(auth.jwt() ->> 'email')),
         FALSE)
 $$;
 
 -- usuarios: cada um lê o próprio; Admin lê todos.
 DROP POLICY IF EXISTS usuarios_select ON public.usuarios;
 CREATE POLICY usuarios_select ON public.usuarios FOR SELECT
-    USING (id_usuario = auth.uid() OR public.fn_perfil_atual() = 'Admin');
+    USING (
+        LOWER(email) = LOWER(auth.jwt() ->> 'email')
+        OR public.fn_perfil_atual() = 'Admin'
+    );
 
 DROP POLICY IF EXISTS usuarios_insert ON public.usuarios;
 CREATE POLICY usuarios_insert ON public.usuarios FOR INSERT

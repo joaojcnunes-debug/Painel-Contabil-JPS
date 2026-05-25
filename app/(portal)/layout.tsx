@@ -22,7 +22,7 @@ export default async function PortalLayout({
   const { data: usuarioData } = await supabase
     .from("usuarios")
     .select("perfil, id_cliente")
-    .eq("id_usuario", user.id)
+    .ilike("email", user.email ?? "")
     .single();
   const usuario = usuarioData as
     | { perfil: string; id_cliente: string | null }
