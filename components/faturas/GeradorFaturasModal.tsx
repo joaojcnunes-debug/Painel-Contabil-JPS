@@ -8,6 +8,7 @@ import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { gerarId, formatBRL } from "@/lib/utils";
 import type { Cliente } from "@/lib/supabase/types";
 
@@ -28,10 +29,12 @@ function venctoDoMes(comp: string, dia: number): string {
   return `${comp}-${String(Math.min(dia, ultimoDia)).padStart(2, "0")}`;
 }
 
-const DIA_PADRAO = 10;
+const DIA_PADRAO_FALLBACK = 10;
 
 export function GeradorFaturasModal({ open, onClose, clientes }: Props) {
   const qc = useQueryClient();
+  const { data: cfg } = useConfiguracao();
+  const DIA_PADRAO = cfg?.dia_padrao_fechamento ?? DIA_PADRAO_FALLBACK;
   const [competencia, setCompetencia] = useState(competenciaAtual());
 
   useEffect(() => {

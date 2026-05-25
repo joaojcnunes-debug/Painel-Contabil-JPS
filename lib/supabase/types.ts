@@ -125,6 +125,22 @@ export interface Fatura {
   updated_at: string | null;
 }
 
+// Configuracoes — singleton (id sempre = 1)
+export interface Configuracao {
+  id: number;
+  nome_escritorio: string;
+  razao_social: string | null;
+  cnpj: string | null;
+  endereco: string | null;
+  telefone: string | null;
+  email: string | null;
+  site: string | null;
+  dia_padrao_fechamento: number;
+  logo_url: string | null;
+  mensagem_login: string | null;
+  updated_at: string | null;
+}
+
 // ─── Database (typed Supabase generic) ──────────────────────────────────────
 // Mesmo padrão do painel-sst: TableShape com Insert: Partial<T> + Relationships: [].
 // O Insert tipa-se como `never[]` em alguns casos — usar `payload as never` no
@@ -146,6 +162,7 @@ export interface Database {
       obrigacoes: TableShape<Obrigacao>;
       documentos: TableShape<Documento>;
       faturas: TableShape<Fatura>;
+      configuracoes: TableShape<Configuracao>;
     };
   };
 }
