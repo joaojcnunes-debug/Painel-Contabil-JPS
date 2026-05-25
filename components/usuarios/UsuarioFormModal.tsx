@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { KeyRound } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
@@ -30,6 +31,9 @@ export function UsuarioFormModal({ open, onClose, usuario, clientes }: Props) {
   const [idCliente, setIdCliente] = useState<string>("");
   const [ativo, setAtivo] = useState(true);
 
+  // Bloco de redefinir senha (só em edição)
+  const [novaSenha, setNovaSenha] = useState("");
+
   useEffect(() => {
     if (!open) return;
     setNome(usuario?.nome ?? "");
@@ -38,7 +42,44 @@ export function UsuarioFormModal({ open, onClose, usuario, clientes }: Props) {
     setPerfil((usuario?.perfil as PerfilUsuario) ?? "Contador");
     setIdCliente(usuario?.id_cliente ?? "");
     setAtivo(usuario?.ativo ?? true);
+    setNovaSenha("");
   }, [open, usuario]);
+
+  const resetPassword = useMutation({
+    mutationFn: async () => {
+      if (!usuario) throw new Error("Sem usuário selecionado");
+      if (novaSenha.length < 6) {
+        throw new Error("A senha deve ter pelo menos 6 caracteres");
+      }
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.functions.invoke(
+        "admin-reset-password",
+        { body: { email: usuario.email, new_password: novaSenha } }
+      );
+      if (error) {
+        // Tenta extrair mensagem do response body do Functions
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.text === "function") {
+            const txt = await ctx.text();
+            const j = JSON.parse(txt);
+            if (j?.error) msg = j.error;
+          }
+        } catch {
+          /* mantém msg padrão */
+        }
+        throw new Error(msg);
+      }
+      const result = data as { ok?: boolean; error?: string };
+      if (!result?.ok) throw new Error(result?.error ?? "Falha ao redefinir senha");
+    },
+    onSuccess: () => {
+      toast.success("Senha redefinida com sucesso");
+      setNovaSenha("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -222,6 +263,40 @@ export function UsuarioFormModal({ open, onClose, usuario, clientes }: Props) {
           </label>
         </Field>
       </form>
+
+      {isEdit && (
+        <div className="mt-6 border-t border-card-border pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <KeyRound size={16} className="text-gold" />
+            <h3 className="font-serif text-sm font-semibold text-verde-dark">
+              Redefinir senha
+            </h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Define uma nova senha pro usuário. Ele pode trocar depois pelo
+            próprio login.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              className={inputClass}
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              minLength={6}
+              autoComplete="new-password"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => resetPassword.mutate()}
+              disabled={resetPassword.isPending || novaSenha.length < 6}
+            >
+              {resetPassword.isPending ? "Aplicando..." : "Aplicar"}
+            </Button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
