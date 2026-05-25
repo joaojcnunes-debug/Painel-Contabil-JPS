@@ -42,6 +42,33 @@ export function useObrigacoes(filtros?: {
   });
 }
 
+// Variante por intervalo de data_vencimento — usado no calendário.
+export function useObrigacoesPorIntervalo(
+  inicio: string,
+  fim: string,
+  filtros?: { idCliente?: string }
+) {
+  return useQuery({
+    queryKey: ["obrigacoes-intervalo", inicio, fim, filtros ?? {}],
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      let q = supabase
+        .from("obrigacoes")
+        .select(
+          "*, clientes(razao_social), obrigacoes_catalogo(sigla, nome, periodicidade, esfera)"
+        )
+        .gte("data_vencimento", inicio)
+        .lte("data_vencimento", fim)
+        .order("data_vencimento", { ascending: true });
+      if (filtros?.idCliente) q = q.eq("id_cliente", filtros.idCliente);
+      const { data, error } = await q.limit(1000);
+      if (error) throw error;
+      return (data ?? []) as unknown as ObrigacaoComJoin[];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useObrigacoesCatalogo(apenasAtivos = false) {
   return useQuery({
     queryKey: ["obrigacoes-catalogo", { apenasAtivos }],

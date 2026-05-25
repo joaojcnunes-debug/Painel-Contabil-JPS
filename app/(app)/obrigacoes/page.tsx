@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Check, Edit2, Plus, Sparkles, Settings2 } from "lucide-react";
+import { CalendarDays, Check, Edit2, Plus, Sparkles, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -101,6 +101,12 @@ function ObrigacoesInner() {
         subtitle="Calendário fiscal dos clientes"
         actions={
           <div className="flex items-center gap-2">
+            <Link
+              href={`/obrigacoes/calendario${idCliente ? `?cliente=${idCliente}` : ""}`}
+              className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+            >
+              <CalendarDays size={14} /> Calendário
+            </Link>
             {isAdmin && (
               <Link
                 href="/obrigacoes/catalogo"
