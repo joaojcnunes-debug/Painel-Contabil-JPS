@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Check, Edit2, Plus, Sparkles, Settings2 } from "lucide-react";
@@ -35,12 +36,21 @@ function competenciaAtual() {
 }
 
 export default function ObrigacoesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ObrigacoesInner />
+    </Suspense>
+  );
+}
+
+function ObrigacoesInner() {
   const user = useUserStore((s) => s.user);
   const isAdmin = user?.perfil === "Admin";
+  const sp = useSearchParams();
 
   const [competencia, setCompetencia] = useState(competenciaAtual());
-  const [status, setStatus] = useState("");
-  const [idCliente, setIdCliente] = useState("");
+  const [status, setStatus] = useState(sp.get("status") ?? "");
+  const [idCliente, setIdCliente] = useState(sp.get("cliente") ?? "");
 
   const { data: obrigacoes = [], isLoading } = useObrigacoes({
     competencia,

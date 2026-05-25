@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Download, Trash2, Upload } from "lucide-react";
@@ -30,11 +31,20 @@ const STATUSES: StatusDocumento[] = [
 ];
 
 export default function DocumentosPage() {
+  return (
+    <Suspense fallback={null}>
+      <DocumentosInner />
+    </Suspense>
+  );
+}
+
+function DocumentosInner() {
   const user = useUserStore((s) => s.user);
   const isAdmin = user?.perfil === "Admin";
+  const sp = useSearchParams();
 
-  const [idCliente, setIdCliente] = useState("");
-  const [status, setStatus] = useState("");
+  const [idCliente, setIdCliente] = useState(sp.get("cliente") ?? "");
+  const [status, setStatus] = useState(sp.get("status") ?? "");
 
   const { data: clientes = [] } = useClientes();
   const { data: docs = [], isLoading } = useDocumentos({

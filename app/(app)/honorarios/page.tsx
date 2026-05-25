@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Check, Edit2, Plus, Sparkles, X } from "lucide-react";
@@ -31,12 +32,21 @@ function competenciaAtual() {
 }
 
 export default function HonorariosPage() {
+  return (
+    <Suspense fallback={null}>
+      <HonorariosInner />
+    </Suspense>
+  );
+}
+
+function HonorariosInner() {
   const user = useUserStore((s) => s.user);
   const isAdmin = user?.perfil === "Admin";
+  const sp = useSearchParams();
 
   const [competencia, setCompetencia] = useState(competenciaAtual());
-  const [status, setStatus] = useState("");
-  const [idCliente, setIdCliente] = useState("");
+  const [status, setStatus] = useState(sp.get("status") ?? "");
+  const [idCliente, setIdCliente] = useState(sp.get("cliente") ?? "");
 
   const { data: clientes = [] } = useClientes();
   const { data: faturas = [], isLoading } = useFaturas({
