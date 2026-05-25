@@ -6,21 +6,18 @@ import {
   Building2,
   CalendarCheck,
   FileText,
-  Mail,
-  Phone,
   Receipt,
-  Users as UsersIcon,
 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import type {
   Cliente,
-  ClienteContato,
   Documento,
   Fatura,
   Obrigacao,
 } from "@/lib/supabase/types";
 import { ClienteHeaderActions } from "./ClienteHeader";
+import { ContatosSection } from "@/components/contatos/ContatosSection";
 
 const REGIME_LABEL: Record<string, string> = {
   SIMPLES_NACIONAL: "Simples Nacional",
@@ -77,7 +74,6 @@ export default async function ClienteDetalhe({
   const cliente = clienteData as Cliente;
 
   const [
-    contatosRes,
     obrigPendCount,
     obrigAtrasCount,
     docsCount,
@@ -86,11 +82,6 @@ export default async function ClienteDetalhe({
     docsRecentes,
     faturasRecentes,
   ] = await Promise.all([
-    supabase
-      .from("clientes_contatos")
-      .select("*")
-      .eq("id_cliente", id)
-      .order("principal", { ascending: false }),
     supabase
       .from("obrigacoes")
       .select("*", { count: "exact", head: true })
@@ -130,7 +121,6 @@ export default async function ClienteDetalhe({
       .limit(10),
   ]);
 
-  const contatos = (contatosRes.data ?? []) as unknown as ClienteContato[];
   const obrigacoes = (obrigRecentes.data ?? []) as unknown as ObrigacaoExp[];
   const documentos = (docsRecentes.data ?? []) as unknown as Documento[];
   const faturas = (faturasRecentes.data ?? []) as unknown as Fatura[];
@@ -315,42 +305,7 @@ export default async function ClienteDetalhe({
           ))}
         </Panel>
 
-        <Panel
-          title="Contatos"
-          href="#"
-          empty="Nenhum contato cadastrado"
-          icon={UsersIcon}
-        >
-          {contatos.map((c) => (
-            <div key={c.id_contato} className="px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="text-sm font-medium text-gray-800">
-                  {c.nome}
-                </div>
-                {c.principal && (
-                  <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-gold/20 text-gold">
-                    principal
-                  </span>
-                )}
-              </div>
-              {c.cargo && (
-                <div className="text-xs text-gray-500">{c.cargo}</div>
-              )}
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                {c.email && (
-                  <span className="inline-flex items-center gap-1">
-                    <Mail size={11} /> {c.email}
-                  </span>
-                )}
-                {c.telefone && (
-                  <span className="inline-flex items-center gap-1">
-                    <Phone size={11} /> {c.telefone}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </Panel>
+        <ContatosSection idCliente={id} />
       </div>
 
       {/* Bloco financeiro/observações */}

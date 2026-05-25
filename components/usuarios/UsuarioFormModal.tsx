@@ -7,7 +7,9 @@ import { KeyRound } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { translateAuthError } from "@/lib/supabase/errors";
 import { gerarId } from "@/lib/utils";
 import type { Cliente, PerfilUsuario, Usuario } from "@/lib/supabase/types";
 
@@ -130,11 +132,7 @@ export function UsuarioFormModal({ open, onClose, usuario, clientes }: Props) {
             refresh_token: sessaoAdmin.refresh_token,
           });
         }
-        throw new Error(
-          errAuth.message === "User already registered"
-            ? "E-mail já cadastrado"
-            : errAuth.message
-        );
+        throw new Error(translateAuthError(errAuth.message));
       }
 
       if (sessaoAdmin) {
@@ -212,13 +210,12 @@ export function UsuarioFormModal({ open, onClose, usuario, clientes }: Props) {
         </Field>
         {!isEdit && (
           <Field label="Senha" required hint="Mínimo 6 caracteres">
-            <input
-              type="password"
-              className={inputClass}
+            <PasswordInput
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               required
               minLength={6}
+              autoComplete="new-password"
             />
           </Field>
         )}
@@ -277,15 +274,15 @@ export function UsuarioFormModal({ open, onClose, usuario, clientes }: Props) {
             próprio login.
           </p>
           <div className="flex gap-2">
-            <input
-              type="password"
-              className={inputClass}
-              value={novaSenha}
-              onChange={(e) => setNovaSenha(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              minLength={6}
-              autoComplete="new-password"
-            />
+            <div className="flex-1">
+              <PasswordInput
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                minLength={6}
+                autoComplete="new-password"
+              />
+            </div>
             <Button
               type="button"
               variant="secondary"

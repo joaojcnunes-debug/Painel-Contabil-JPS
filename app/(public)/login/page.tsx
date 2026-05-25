@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/lib/store";
+import { translateAuthError } from "@/lib/supabase/errors";
 import type { Usuario } from "@/lib/supabase/types";
 import { Logo } from "@/components/ui/Logo";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 
 export default function LoginPage() {
   return (
@@ -28,38 +30,51 @@ function LoginForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const emailNorm = email.trim().toLowerCase();
+    if (!emailNorm || !senha) {
+      toast.error("Informe e-mail e senha");
+      return;
+    }
     setLoading(true);
     try {
       const supabase = createSupabaseBrowserClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: emailNorm,
         password: senha,
       });
       if (error || !data.user) {
-        toast.error(error?.message ?? "Não foi possível entrar.");
+        toast.error(translateAuthError(error?.message));
         return;
       }
 
-      const emailLower = (data.user.email ?? email).trim().toLowerCase();
       const { data: usuarioData, error: errUser } = await supabase
         .from("usuarios")
         .select("*")
-        .ilike("email", emailLower)
-        .single();
+        .ilike("email", emailNorm)
+        .maybeSingle();
+
+      if (errUser) {
+        toast.error("Erro ao buscar perfil: " + errUser.message);
+        await supabase.auth.signOut();
+        return;
+      }
       const usuario = usuarioData as Usuario | null;
 
-      if (errUser || !usuario) {
-        toast.error("Usuário autenticado, mas sem registro em usuarios.");
+      if (!usuario) {
+        toast.error(
+          "Você está autenticado mas ainda não foi cadastrado no sistema. Avise o administrador."
+        );
+        await supabase.auth.signOut();
         return;
       }
       if (!usuario.ativo) {
-        toast.error("Usuário desativado.");
+        toast.error("Usuário desativado. Procure o administrador.");
         await supabase.auth.signOut();
         return;
       }
 
       setUser(usuario);
-      toast.success(`Olá, ${usuario.nome}!`);
+      toast.success(`Olá, ${usuario.nome.split(" ")[0]}!`);
 
       const destino =
         usuario.perfil === "Cliente"
@@ -68,6 +83,8 @@ function LoginForm() {
           ? "/inicio"
           : next;
       router.push(destino);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro inesperado");
     } finally {
       setLoading(false);
     }
@@ -97,20 +114,20 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-verde-primary"
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-verde-primary text-sm"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Senha
             </label>
-            <input
-              type="password"
+            <PasswordInput
               required
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
               autoComplete="current-password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-verde-primary"
+              minLength={6}
             />
           </div>
           <button
