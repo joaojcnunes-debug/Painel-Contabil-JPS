@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Edit2, Plus } from "lucide-react";
+import { Edit2, Plus, Upload } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { ClienteFormModal } from "@/components/clientes/ClienteFormModal";
+import { ImportarClientesModal } from "@/components/clientes/ImportarClientesModal";
 import { useClientes } from "@/lib/hooks/useClientes";
 import { formatCNPJ, formatBRL } from "@/lib/utils";
 import { csvData, csvMoeda } from "@/lib/csv";
@@ -31,6 +32,7 @@ export default function ClientesPage() {
   const { data: clientes = [], isLoading } = useClientes();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Cliente | null>(null);
+  const [importarOpen, setImportarOpen] = useState(false);
 
   function novo() {
     setEditing(null);
@@ -69,6 +71,13 @@ export default function ClientesPage() {
                 { header: "Status", value: (c) => c.status },
               ]}
             />
+            <Button
+              variant="secondary"
+              onClick={() => setImportarOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Upload size={16} /> Importar CSV
+            </Button>
             <Button onClick={novo} className="flex items-center gap-2">
               <Plus size={16} /> Novo cliente
             </Button>
@@ -152,6 +161,10 @@ export default function ClientesPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         cliente={editing}
+      />
+      <ImportarClientesModal
+        open={importarOpen}
+        onClose={() => setImportarOpen(false)}
       />
     </div>
   );

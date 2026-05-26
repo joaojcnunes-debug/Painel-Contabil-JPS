@@ -51,3 +51,68 @@ export function csvData(iso: string | null | undefined): string {
   if (isNaN(d.getTime())) return "";
   return d.toLocaleDateString("pt-BR");
 }
+
+// Parser CSV simples: aceita separador ; ou , (auto-detecta pela 1ª linha),
+// suporta valores entre aspas com aspas duplas escapadas como "" e BOM UTF-8.
+export function parseCsv(text: string): string[][] {
+  // Remove BOM se presente
+  let t = text.replace(/^﻿/, "");
+  // Normaliza quebras
+  t = t.replace(/\r\n?/g, "\n");
+
+  // Detecta separador olhando a primeira linha não vazia
+  const firstLine = t.split("\n").find((l) => l.trim().length > 0) ?? "";
+  const sep = firstLine.split(";").length > firstLine.split(",").length ? ";" : ",";
+
+  const rows: string[][] = [];
+  let cur: string[] = [];
+  let val = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (t[i + 1] === '"') {
+          val += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        val += c;
+      }
+    } else {
+      if (c === '"') {
+        inQuotes = true;
+      } else if (c === sep) {
+        cur.push(val);
+        val = "";
+      } else if (c === "\n") {
+        cur.push(val);
+        rows.push(cur);
+        cur = [];
+        val = "";
+      } else {
+        val += c;
+      }
+    }
+  }
+  // Última linha
+  if (val.length > 0 || cur.length > 0) {
+    cur.push(val);
+    rows.push(cur);
+  }
+  // Remove linhas totalmente vazias
+  return rows.filter((r) => r.some((c) => c.trim().length > 0));
+}
+
+// Normaliza header de coluna pra match flexível
+export function normalizeHeader(h: string): string {
+  return h
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
