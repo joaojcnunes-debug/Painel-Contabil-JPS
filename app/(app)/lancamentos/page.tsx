@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +10,9 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Edit2,
+  FileBarChart2,
   Plus,
+  Settings2,
   Trash2,
   Wallet,
 } from "lucide-react";
@@ -129,6 +132,20 @@ function LancamentosInner() {
         subtitle="Receitas e despesas por cliente"
         actions={
           <div className="flex items-center gap-2">
+            <Link
+              href={`/lancamentos/dre${idCliente ? `?cliente=${idCliente}` : ""}`}
+              className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+            >
+              <FileBarChart2 size={14} /> DRE
+            </Link>
+            {user?.perfil === "Admin" && (
+              <Link
+                href="/lancamentos/catalogo"
+                className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+              >
+                <Settings2 size={14} /> Plano de contas
+              </Link>
+            )}
             <ExportCsvButton
               rows={lancamentos}
               filename={`lancamentos-${dataInicio}_${dataFim}.csv`}
