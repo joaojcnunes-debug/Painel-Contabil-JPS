@@ -16,6 +16,7 @@ import {
   Repeat,
   Settings2,
   Trash2,
+  Upload,
   Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -38,6 +39,13 @@ const LancamentoFormModal = dynamic(
   () =>
     import("@/components/lancamentos/LancamentoFormModal").then((m) => ({
       default: m.LancamentoFormModal,
+    })),
+  { ssr: false }
+);
+const ImportarLancamentosModal = dynamic(
+  () =>
+    import("@/components/lancamentos/ImportarLancamentosModal").then((m) => ({
+      default: m.ImportarLancamentosModal,
     })),
   { ssr: false }
 );
@@ -89,6 +97,7 @@ function LancamentosInner() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Lancamento | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const qc = useQueryClient();
   const excluir = useMutation({
@@ -197,9 +206,18 @@ function LancamentosInner() {
               ]}
             />
             {isEquipe && (
-              <Button onClick={novo} className="flex items-center gap-2">
-                <Plus size={16} /> Novo lançamento
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => setImportOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Upload size={16} /> Importar
+                </Button>
+                <Button onClick={novo} className="flex items-center gap-2">
+                  <Plus size={16} /> Novo lançamento
+                </Button>
+              </>
             )}
           </div>
         }
@@ -420,6 +438,12 @@ function LancamentosInner() {
         open={formOpen}
         onClose={() => setFormOpen(false)}
         lancamento={editing}
+        clientes={clientes}
+        contas={contas}
+      />
+      <ImportarLancamentosModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
         clientes={clientes}
         contas={contas}
       />
