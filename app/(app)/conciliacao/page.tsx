@@ -19,10 +19,15 @@ import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
 import { useClientes } from "@/lib/hooks/useClientes";
 import { usePlanoContas } from "@/lib/hooks/useLancamentos";
-import { useBancoMovimentos } from "@/lib/hooks/useBancoMovimentos";
+import {
+  useBancoMovimentos,
+  useLancamentosLivres,
+  type CandidatoLancamento,
+} from "@/lib/hooks/useBancoMovimentos";
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { gerarId, formatBRL, formatDate } from "@/lib/utils";
+import { formatBRL, formatDate } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
 import type { BancoMovimento, Lancamento } from "@/lib/supabase/types";
 
 const ImportarExtratoModal = dynamic(
@@ -66,6 +71,45 @@ export default function ConciliacaoPage() {
     idCliente,
     estado
   );
+  const { data: lancsLivres = [] } = useLancamentosLivres(
+    estado === "pendentes" ? idCliente : ""
+  );
+
+  // Indexa lançamentos livres por (tipo, valor absoluto) pra match O(1)
+  const indexLanc = useMemo(() => {
+    const m = new Map<string, CandidatoLancamento[]>();
+    for (const l of lancsLivres) {
+      const key = `${l.tipo}::${Math.abs(Number(l.valor)).toFixed(2)}`;
+      const arr = m.get(key) ?? [];
+      arr.push(l);
+      m.set(key, arr);
+    }
+    return m;
+  }, [lancsLivres]);
+
+  // Pra um movimento, retorna sugestão se houver candidato dentro de ±7 dias
+  function sugerirCandidato(
+    mov: BancoMovimento
+  ): CandidatoLancamento | null {
+    const tipo: "RECEITA" | "DESPESA" =
+      Number(mov.valor) >= 0 ? "RECEITA" : "DESPESA";
+    const key = `${tipo}::${Math.abs(Number(mov.valor)).toFixed(2)}`;
+    const candidatos = indexLanc.get(key) ?? [];
+    if (candidatos.length === 0) return null;
+    const dataMov = new Date(mov.data_movimento + "T12:00").getTime();
+    // Mais próximo no tempo, dentro de ±7 dias
+    let melhor: CandidatoLancamento | null = null;
+    let melhorDelta = Infinity;
+    for (const c of candidatos) {
+      const dataLanc = new Date(c.data_lancamento + "T12:00").getTime();
+      const delta = Math.abs(dataMov - dataLanc);
+      if (delta <= 7 * 86400000 && delta < melhorDelta) {
+        melhor = c;
+        melhorDelta = delta;
+      }
+    }
+    return melhor;
+  }
 
   const [importarOpen, setImportarOpen] = useState(false);
   const [vincularOpen, setVincularOpen] = useState(false);
@@ -110,6 +154,34 @@ export default function ConciliacaoPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["banco-movimentos"] });
       toast.success("Movimento ignorado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const vincularRapido = useMutation({
+    mutationFn: async ({
+      mov,
+      idLancamento,
+    }: {
+      mov: BancoMovimento;
+      idLancamento: string;
+    }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("banco_movimentos")
+        .update({
+          conciliado: true,
+          id_lancamento: idLancamento,
+          ignorado: false,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("id_movimento", mov.id_movimento);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["banco-movimentos"] });
+      qc.invalidateQueries({ queryKey: ["lancamentos-livres"] });
+      toast.success("Vinculado");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -312,7 +384,10 @@ export default function ConciliacaoPage() {
                     </td>
                   </tr>
                 )}
-                {movimentos.map((m) => (
+                {movimentos.map((m) => {
+                  const sugestao =
+                    estado === "pendentes" ? sugerirCandidato(m) : null;
+                  return (
                   <tr key={m.id_movimento} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                       {formatDate(m.data_movimento)}
@@ -322,6 +397,30 @@ export default function ConciliacaoPage() {
                       {m.observacoes && (
                         <div className="text-xs text-gray-500">
                           {m.observacoes}
+                        </div>
+                      )}
+                      {sugestao && (
+                        <div className="mt-1 inline-flex items-center gap-1.5 text-xs bg-gold/10 text-amber-800 rounded px-2 py-1 border border-gold/20">
+                          <Sparkles size={11} className="text-gold flex-shrink-0" />
+                          <span className="truncate">
+                            Sugestão: <strong>{sugestao.descricao}</strong>{" "}
+                            <span className="text-gray-500">
+                              ({formatDate(sugestao.data_lancamento)})
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              vincularRapido.mutate({
+                                mov: m,
+                                idLancamento: sugestao.id_lancamento,
+                              })
+                            }
+                            disabled={vincularRapido.isPending}
+                            className="ml-1 px-2 py-0.5 rounded bg-gold text-white text-[10px] font-semibold hover:bg-amber-700"
+                          >
+                            Aceitar
+                          </button>
                         </div>
                       )}
                     </td>
@@ -379,7 +478,8 @@ export default function ConciliacaoPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
