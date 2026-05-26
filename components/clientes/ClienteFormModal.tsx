@@ -133,6 +133,62 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
     }
   }
 
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+
+  async function buscarCnpj() {
+    const raw = cnpj.replace(/\D/g, "");
+    if (raw.length !== 14) {
+      toast.error("CNPJ deve ter 14 dígitos");
+      return;
+    }
+    setCnpjLoading(true);
+    try {
+      const res = await fetch(
+        `https://brasilapi.com.br/api/cnpj/v1/${raw}`
+      );
+      if (!res.ok) {
+        if (res.status === 404) toast.error("CNPJ não encontrado");
+        else toast.error(`Falha na consulta (HTTP ${res.status})`);
+        return;
+      }
+      const d = await res.json();
+
+      // Identificação
+      if (!razao && d.razao_social) setRazao(d.razao_social);
+      if (!fantasia && d.nome_fantasia) setFantasia(d.nome_fantasia);
+      if (!email && d.email) setEmail(String(d.email).toLowerCase());
+      if (!atividade && d.cnae_fiscal_descricao)
+        setAtividade(d.cnae_fiscal_descricao);
+
+      // Endereço
+      if (!cep && d.cep) setCep(String(d.cep));
+      if (!logradouro && d.logradouro) setLogradouro(d.logradouro);
+      if (!numero && d.numero) setNumero(String(d.numero));
+      if (!complemento && d.complemento) setComplemento(d.complemento);
+      if (!bairro && d.bairro) setBairro(d.bairro);
+      if (!municipio && d.municipio) setMunicipio(d.municipio);
+      if (!estado && d.uf) setEstado(d.uf);
+
+      // Responsável: primeiro sócio do QSA (nome apenas; CPF não vem)
+      const qsa = Array.isArray(d.qsa) ? d.qsa : [];
+      const primeiroSocio = qsa[0];
+      if (primeiroSocio?.nome_socio && !respNome) {
+        setRespNome(primeiroSocio.nome_socio);
+      }
+
+      // Telefone agregado pra contato (DDD + número se vier)
+      if (!respTel && d.ddd_telefone_1) {
+        setRespTel(String(d.ddd_telefone_1));
+      }
+
+      toast.success("Dados preenchidos pela Receita");
+    } catch {
+      toast.error("Falha ao consultar CNPJ");
+    } finally {
+      setCnpjLoading(false);
+    }
+  }
+
   const mutation = useMutation({
     mutationFn: async () => {
       const supabase = createSupabaseBrowserClient();
@@ -261,13 +317,30 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
 
           <div className="grid grid-cols-2 gap-4">
             {tipo === "PJ" ? (
-              <Field label="CNPJ">
-                <input
-                  className={inputClass}
-                  value={cnpj}
-                  onChange={(e) => setCnpj(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                />
+              <Field label="CNPJ" hint="Sai do campo pra buscar dados na Receita">
+                <div className="flex gap-2">
+                  <input
+                    className={`${inputClass} flex-1`}
+                    value={cnpj}
+                    onChange={(e) => setCnpj(e.target.value)}
+                    onBlur={() => {
+                      if (cnpj.replace(/\D/g, "").length === 14 && !isEdit) {
+                        buscarCnpj();
+                      }
+                    }}
+                    placeholder="00.000.000/0000-00"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={buscarCnpj}
+                    disabled={cnpjLoading}
+                    className="flex items-center gap-1 px-3"
+                  >
+                    <Search size={14} />
+                    {cnpjLoading ? "..." : "Buscar"}
+                  </Button>
+                </div>
               </Field>
             ) : (
               <Field label="CPF">
