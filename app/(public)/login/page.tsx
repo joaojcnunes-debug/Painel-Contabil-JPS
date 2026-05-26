@@ -1,10 +1,12 @@
 "use client";
 
 import { Suspense, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/lib/store";
+import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { translateAuthError } from "@/lib/supabase/errors";
 import type { Usuario } from "@/lib/supabase/types";
 import { Logo } from "@/components/ui/Logo";
@@ -23,6 +25,7 @@ function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") || "/inicio";
   const setUser = useUserStore((s) => s.setUser);
+  const { data: cfg } = useConfiguracao();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -94,13 +97,15 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md border border-card-border p-8">
         <div className="flex flex-col items-center mb-7">
-          <Logo size={120} />
-          <h1 className="mt-5 font-serif text-2xl font-bold text-verde-dark tracking-wide">
-            JSP Contabilidade
+          <Logo size={120} src={cfg?.logo_url ?? null} />
+          <h1 className="mt-5 font-serif text-2xl font-bold text-verde-dark tracking-wide text-center">
+            {cfg?.nome_escritorio ?? "JSP Contabilidade"}
           </h1>
-          <p className="text-[11px] uppercase tracking-[0.32em] text-gold mt-1">
-            Personalizada
-          </p>
+          {cfg?.mensagem_login && (
+            <p className="text-xs text-gray-500 mt-2 text-center max-w-xs">
+              {cfg.mensagem_login}
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -139,9 +144,17 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="text-xs text-gray-400 text-center mt-6">
-          Acesso para equipe e clientes.
-        </p>
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <Link
+            href="/esqueci-senha"
+            className="text-xs text-gold hover:text-verde-dark"
+          >
+            Esqueci minha senha
+          </Link>
+          <p className="text-xs text-gray-400">
+            Acesso para equipe e clientes.
+          </p>
+        </div>
       </div>
     </div>
   );

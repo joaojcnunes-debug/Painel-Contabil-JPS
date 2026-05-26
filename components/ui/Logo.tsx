@@ -2,13 +2,42 @@ type LogoProps = {
   size?: number;
   showSubtitle?: boolean;
   className?: string;
+  src?: string | null; // override com URL externa (configuracoes.logo_url)
 };
 
 // Marca da JSP: placa quadrada deep-oliva, "JSP" em serifa pesada brass,
 // filete com losango central, subtítulo em caps espacejado.
-// Inspiração: timbres heráldicos / escudos de bancas tradicionais —
-// menos ornamento decorativo, mais peso institucional.
-export function Logo({ size = 96, showSubtitle = true, className }: LogoProps) {
+// Quando src é passado, renderiza a imagem em vez do SVG padrão.
+export function Logo({
+  size = 96,
+  showSubtitle = true,
+  className,
+  src,
+}: LogoProps) {
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt="JSP Contabilidade"
+        width={size}
+        height={size}
+        className={className}
+        style={{ width: size, height: size, objectFit: "contain" }}
+      />
+    );
+  }
+  return <LogoSvg size={size} showSubtitle={showSubtitle} className={className} />;
+}
+
+function LogoSvg({
+  size,
+  showSubtitle,
+  className,
+}: {
+  size: number;
+  showSubtitle: boolean;
+  className?: string;
+}) {
   return (
     <svg
       width={size}

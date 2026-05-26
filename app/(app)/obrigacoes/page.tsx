@@ -271,10 +271,15 @@ function ObrigacoesInner() {
                     {o.clientes?.razao_social ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-gray-700">
-                    <span className="font-mono text-xs text-verde-dark mr-2">
-                      {o.obrigacoes_catalogo?.sigla ?? "—"}
-                    </span>
-                    {o.obrigacoes_catalogo?.nome}
+                    <Link
+                      href={`/obrigacoes/${o.id_obrigacao}`}
+                      className="hover:text-verde-dark"
+                    >
+                      <span className="font-mono text-xs text-verde-dark mr-2 font-bold">
+                        {o.obrigacoes_catalogo?.sigla ?? "—"}
+                      </span>
+                      {o.obrigacoes_catalogo?.nome}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{o.competencia}</td>
                   <td className="px-4 py-3 text-gray-600">

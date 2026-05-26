@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { Logo } from "@/components/ui/Logo";
 
 type Item = { href: string; label: string; icon: React.ElementType };
@@ -49,6 +50,7 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const logout = useUserStore((s) => s.logout);
+  const { data: cfg } = useConfiguracao();
 
   const items =
     variant === "interno"
@@ -66,10 +68,10 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
   return (
     <aside className="w-60 shrink-0 bg-white border-r border-card-border flex flex-col">
       <div className="px-4 py-5 border-b border-card-border flex items-center gap-3">
-        <Logo size={48} showSubtitle={false} />
+        <Logo size={48} showSubtitle={false} src={cfg?.logo_url ?? null} />
         <div className="min-w-0">
-          <div className="font-serif text-[15px] font-bold text-verde-dark leading-tight tracking-wide">
-            JSP
+          <div className="font-serif text-[15px] font-bold text-verde-dark leading-tight tracking-wide truncate">
+            {cfg?.nome_escritorio?.split(" ")[0] ?? "JSP"}
           </div>
           <div className="text-[9px] uppercase tracking-[0.22em] text-gold leading-relaxed">
             {variant === "interno" ? "Equipe interna" : "Portal do cliente"}

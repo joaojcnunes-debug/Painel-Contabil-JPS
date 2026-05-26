@@ -142,6 +142,16 @@ export interface Fatura {
   updated_at: string | null;
 }
 
+export interface ObrigacaoComentario {
+  id_comentario: string;
+  id_obrigacao: string;
+  autor_email: string;
+  autor_nome: string;
+  autor_perfil: string | null;
+  texto: string;
+  created_at: string;
+}
+
 // Configuracoes — singleton (id sempre = 1)
 export interface Configuracao {
   id: number;
@@ -180,6 +190,7 @@ export interface Database {
       documentos: TableShape<Documento>;
       faturas: TableShape<Fatura>;
       configuracoes: TableShape<Configuracao>;
+      obrigacoes_comentarios: TableShape<ObrigacaoComentario>;
     };
   };
 }

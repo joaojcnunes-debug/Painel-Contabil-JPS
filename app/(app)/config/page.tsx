@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
+import { LogoUpload } from "@/components/config/LogoUpload";
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -242,17 +243,6 @@ export default function ConfigPage() {
               />
             </Field>
             <Field
-              label="URL da logo (opcional)"
-              hint="Cole uma URL pública pra substituir a logo SVG padrão"
-            >
-              <input
-                className={inputClass}
-                value={logo}
-                onChange={(e) => setLogo(e.target.value)}
-                placeholder="https://..."
-              />
-            </Field>
-            <Field
               label="Mensagem no login (opcional)"
               hint="Texto adicional exibido na tela de acesso"
             >
@@ -266,6 +256,8 @@ export default function ConfigPage() {
         </form>
 
         <aside className="space-y-4">
+          <LogoUpload currentUrl={cfg?.logo_url} />
+
           <div className="bg-white border border-card-border rounded-xl p-5">
             <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3 flex items-center gap-2">
               <Settings2 size={14} className="text-gold" /> Atalhos
