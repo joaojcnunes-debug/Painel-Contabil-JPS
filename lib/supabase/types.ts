@@ -171,6 +171,21 @@ export interface Lancamento {
   updated_at: string | null;
 }
 
+export interface LancamentoModelo {
+  id_modelo: string;
+  id_cliente: string;
+  id_conta: string;
+  tipo: TipoLancamento;
+  valor: number;
+  dia_mes: number;
+  descricao: string;
+  documento_ref: string | null;
+  observacoes: string | null;
+  ativo: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ObrigacaoComentario {
   id_comentario: string;
   id_obrigacao: string;
@@ -222,6 +237,7 @@ export interface Database {
       obrigacoes_comentarios: TableShape<ObrigacaoComentario>;
       plano_contas: TableShape<PlanoConta>;
       lancamentos: TableShape<Lancamento>;
+      lancamentos_modelos: TableShape<LancamentoModelo>;
     };
   };
 }

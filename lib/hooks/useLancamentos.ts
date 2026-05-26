@@ -2,7 +2,34 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { Lancamento, PlanoConta } from "@/lib/supabase/types";
+import type {
+  Lancamento,
+  LancamentoModelo,
+  PlanoConta,
+} from "@/lib/supabase/types";
+
+export type LancamentoModeloComJoin = LancamentoModelo & {
+  clientes: { razao_social: string } | null;
+  plano_contas: { codigo: string; nome: string } | null;
+};
+
+export function useLancamentosModelos(apenasAtivos = false) {
+  return useQuery({
+    queryKey: ["lancamentos-modelos", { apenasAtivos }],
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      let q = supabase
+        .from("lancamentos_modelos")
+        .select("*, clientes(razao_social), plano_contas(codigo, nome)")
+        .order("dia_mes", { ascending: true });
+      if (apenasAtivos) q = q.eq("ativo", true);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as LancamentoModeloComJoin[];
+    },
+    staleTime: 60 * 1000,
+  });
+}
 
 export type LancamentoComJoin = Lancamento & {
   clientes: { razao_social: string } | null;

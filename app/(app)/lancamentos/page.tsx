@@ -12,6 +12,7 @@ import {
   Edit2,
   FileBarChart2,
   Plus,
+  Repeat,
   Settings2,
   Trash2,
   Wallet,
@@ -138,6 +139,14 @@ function LancamentosInner() {
             >
               <FileBarChart2 size={14} /> DRE
             </Link>
+            {isEquipe && (
+              <Link
+                href="/lancamentos/recorrentes"
+                className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+              >
+                <Repeat size={14} /> Recorrentes
+              </Link>
+            )}
             {user?.perfil === "Admin" && (
               <Link
                 href="/lancamentos/catalogo"
