@@ -50,6 +50,13 @@ function LoginForm() {
         return;
       }
 
+      // Verifica se há fator 2FA verificado — se sim, redireciona pra step 2
+      const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aalData && aalData.nextLevel === "aal2" && aalData.currentLevel === "aal1") {
+        router.push(`/login/2fa?next=${encodeURIComponent(next)}`);
+        return;
+      }
+
       const { data: usuarioData, error: errUser } = await supabase
         .from("usuarios")
         .select("*")

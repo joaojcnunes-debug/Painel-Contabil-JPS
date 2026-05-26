@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   TrendingUp,
   History,
+  Shield,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const ITEMS_INTERNO: ItemWithGuard[] = [
   { href: "/documentos", label: "Documentos", icon: FolderUp },
   { href: "/honorarios", label: "Honorários", icon: Wallet },
   { href: "/produtividade", label: "Produtividade", icon: TrendingUp },
+  { href: "/seguranca", label: "Segurança", icon: Shield },
   { href: "/usuarios", label: "Usuários", icon: ShieldCheck, adminOnly: true },
   { href: "/logs", label: "Logs", icon: History, adminOnly: true },
   { href: "/config", label: "Configurações", icon: Settings },
