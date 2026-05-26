@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { CalendarDays, Check, Edit2, Plus, Sparkles, Settings2 } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  Edit2,
+  Plus,
+  RotateCcw,
+  Settings2,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
@@ -83,6 +92,42 @@ function ObrigacoesInner() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["obrigacoes"] });
       toast.success("Marcada como entregue");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const desmarcarEntrega = useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("obrigacoes")
+        .update({
+          status: "PENDENTE",
+          data_entrega: null,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("id_obrigacao", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["obrigacoes"] });
+      toast.success("Entrega desfeita — voltou pra pendente");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("obrigacoes")
+        .delete()
+        .eq("id_obrigacao", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["obrigacoes"] });
+      toast.success("Obrigação excluída");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -208,7 +253,7 @@ function ObrigacoesInner() {
               <th className="px-4 py-3">Competência</th>
               <th className="px-4 py-3">Vencimento</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 w-24"></th>
+              <th className="px-4 py-3 w-32"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-card-border">
@@ -244,7 +289,7 @@ function ObrigacoesInner() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      {o.status !== "ENTREGUE" && (
+                      {o.status !== "ENTREGUE" ? (
                         <button
                           onClick={() => marcarEntregue.mutate(o.id_obrigacao)}
                           disabled={marcarEntregue.isPending}
@@ -253,6 +298,16 @@ function ObrigacoesInner() {
                           aria-label="Marcar como entregue"
                         >
                           <Check size={15} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => desmarcarEntrega.mutate(o.id_obrigacao)}
+                          disabled={desmarcarEntrega.isPending}
+                          className="p-1.5 rounded hover:bg-amber-50 text-amber-700"
+                          title="Desmarcar como entregue (volta pra pendente)"
+                          aria-label="Desmarcar como entregue"
+                        >
+                          <RotateCcw size={15} />
                         </button>
                       )}
                       <button
@@ -263,6 +318,27 @@ function ObrigacoesInner() {
                       >
                         <Edit2 size={15} />
                       </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            const nome =
+                              `${o.obrigacoes_catalogo?.sigla ?? ""} • ${o.clientes?.razao_social ?? ""} • ${o.competencia}`.trim();
+                            if (
+                              confirm(
+                                `Excluir esta obrigação?\n\n${nome}\n\nEssa ação não pode ser desfeita.`
+                              )
+                            ) {
+                              excluir.mutate(o.id_obrigacao);
+                            }
+                          }}
+                          disabled={excluir.isPending}
+                          className="p-1.5 rounded hover:bg-red-50 text-gray-600 hover:text-red-alert"
+                          title="Excluir"
+                          aria-label="Excluir"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
