@@ -7,8 +7,9 @@ import { Sparkles } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
+import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { gerarId } from "@/lib/utils";
+import { gerarId, formatCNPJ } from "@/lib/utils";
 import type { Cliente, ObrigacaoCatalogo } from "@/lib/supabase/types";
 
 type Props = {
@@ -78,14 +79,6 @@ export function GeradorMesModal({ open, onClose, clientes, catalogo }: Props) {
     );
   }, [open, clientesAtivos, catAtivo]);
 
-  function toggleCliente(id: string) {
-    setIdsClientes((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  }
   function toggleCatalogo(id: string) {
     setIdsCatalogo((prev) => {
       const n = new Set(prev);
@@ -93,14 +86,6 @@ export function GeradorMesModal({ open, onClose, clientes, catalogo }: Props) {
       else n.add(id);
       return n;
     });
-  }
-
-  function setTodosClientes(marcar: boolean) {
-    if (marcar) {
-      setIdsClientes(new Set(clientesAtivos.map((c) => c.id_cliente)));
-    } else {
-      setIdsClientes(new Set());
-    }
   }
 
   function marcarPorPeriodicidade(
@@ -236,14 +221,31 @@ export function GeradorMesModal({ open, onClose, clientes, catalogo }: Props) {
       }
     >
       <div className="space-y-4">
-        <Field label="Competência" required>
-          <input
-            type="month"
-            className={inputClass}
-            value={competencia}
-            onChange={(e) => setCompetencia(e.target.value)}
-          />
-        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Competência" required>
+            <input
+              type="month"
+              className={inputClass}
+              value={competencia}
+              onChange={(e) => setCompetencia(e.target.value)}
+            />
+          </Field>
+          <Field
+            label={`Clientes (${clientesAtivos.length} ativos)`}
+            required
+          >
+            <MultiSelectDropdown
+              items={clientesAtivos.map((c) => ({
+                id: c.id_cliente,
+                label: c.razao_social,
+                sub: c.cnpj ? formatCNPJ(c.cnpj) : undefined,
+              }))}
+              selected={idsClientes}
+              onChange={setIdsClientes}
+              placeholder="Selecione clientes..."
+            />
+          </Field>
+        </div>
 
         {/* Resumo */}
         <div className="bg-verde-light border border-verde-border rounded-lg p-3 text-sm text-verde-dark flex items-center justify-between">
@@ -258,85 +260,38 @@ export function GeradorMesModal({ open, onClose, clientes, catalogo }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Clientes */}
-          <div className="border border-card-border rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-card-border">
-              <h4 className="font-serif text-sm font-semibold text-verde-dark">
-                Clientes ({clientesAtivos.length} ativos)
-              </h4>
-              <div className="flex gap-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setTodosClientes(true)}
-                  className="text-gold hover:text-verde-dark"
-                >
-                  Todos
-                </button>
-                <span className="text-gray-300">/</span>
-                <button
-                  type="button"
-                  onClick={() => setTodosClientes(false)}
-                  className="text-gold hover:text-verde-dark"
-                >
-                  Nenhum
-                </button>
-              </div>
-            </div>
-            <div className="max-h-72 overflow-y-auto divide-y divide-card-border">
-              {clientesAtivos.length === 0 && (
-                <div className="px-3 py-6 text-center text-xs text-gray-500">
-                  Nenhum cliente ativo
-                </div>
-              )}
-              {clientesAtivos.map((c) => (
-                <label
-                  key={c.id_cliente}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={idsClientes.has(c.id_cliente)}
-                    onChange={() => toggleCliente(c.id_cliente)}
-                    className="rounded border-gray-300 text-verde-primary"
-                  />
-                  <span className="truncate text-gray-800">{c.razao_social}</span>
-                </label>
-              ))}
-            </div>
+        {/* Obrigações em coluna única (mais espaço pra ver tudo) */}
+        <div className="border border-card-border rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-card-border">
+            <h4 className="font-serif text-sm font-semibold text-verde-dark">
+              Obrigações do catálogo
+            </h4>
+            <span className="text-[11px] text-gray-500">
+              {idsCatalogo.size} selecionada{idsCatalogo.size === 1 ? "" : "s"}
+            </span>
           </div>
-
-          {/* Obrigações */}
-          <div className="border border-card-border rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-card-border">
-              <h4 className="font-serif text-sm font-semibold text-verde-dark">
-                Obrigações do catálogo
-              </h4>
-            </div>
-            <div className="max-h-72 overflow-y-auto">
-              {/* Grupos */}
-              <GrupoCatalogo
-                titulo="Mensais"
-                itens={mensais}
-                selecionados={idsCatalogo}
-                onToggle={toggleCatalogo}
-                onTodos={(m) => marcarPorPeriodicidade("MENSAL", m)}
-              />
-              <GrupoCatalogo
-                titulo="Trimestrais"
-                itens={trimestrais}
-                selecionados={idsCatalogo}
-                onToggle={toggleCatalogo}
-                onTodos={(m) => marcarPorPeriodicidade("TRIMESTRAL", m)}
-              />
-              <GrupoCatalogo
-                titulo="Anuais"
-                itens={anuais}
-                selecionados={idsCatalogo}
-                onToggle={toggleCatalogo}
-                onTodos={(m) => marcarPorPeriodicidade("ANUAL", m)}
-              />
-            </div>
+          <div className="max-h-80 overflow-y-auto">
+            <GrupoCatalogo
+              titulo="Mensais"
+              itens={mensais}
+              selecionados={idsCatalogo}
+              onToggle={toggleCatalogo}
+              onTodos={(m) => marcarPorPeriodicidade("MENSAL", m)}
+            />
+            <GrupoCatalogo
+              titulo="Trimestrais"
+              itens={trimestrais}
+              selecionados={idsCatalogo}
+              onToggle={toggleCatalogo}
+              onTodos={(m) => marcarPorPeriodicidade("TRIMESTRAL", m)}
+            />
+            <GrupoCatalogo
+              titulo="Anuais"
+              itens={anuais}
+              selecionados={idsCatalogo}
+              onToggle={toggleCatalogo}
+              onTodos={(m) => marcarPorPeriodicidade("ANUAL", m)}
+            />
           </div>
         </div>
 
