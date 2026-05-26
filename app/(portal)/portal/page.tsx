@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { CalendarCheck, FileText, Receipt, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { createSupabaseServerClient } from "@/lib/supabase/client";
+import {
+  getServerSupabase,
+  getUsuarioPerfil,
+} from "@/lib/supabase/server-cache";
 import { formatBRL, formatDate } from "@/lib/utils";
 
 type ProximaObrig = {
@@ -22,26 +24,9 @@ type ProximaFatura = {
 };
 
 export default async function PortalInicio() {
-  const cookieStore = await cookies();
-  const supabase = createSupabaseServerClient({
-    getAll: () => cookieStore.getAll(),
-    set: (name, value, options) => cookieStore.set(name, value, options),
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: usuarioData } = await supabase
-    .from("usuarios")
-    .select("id_cliente, nome")
-    .ilike("email", user!.email ?? "")
-    .single();
-  const usuario = usuarioData as
-    | { id_cliente: string | null; nome: string }
-    | null;
+  const supabase = await getServerSupabase();
+  const usuario = await getUsuarioPerfil();
   const idCliente = usuario?.id_cliente ?? "";
-
-  const hoje = new Date().toISOString().slice(0, 10);
 
   const [obrigPend, docs, fatPend, proxObrig, proxFat] = await Promise.all([
     supabase
@@ -60,10 +45,11 @@ export default async function PortalInicio() {
       .in("status", ["ABERTA", "ATRASADA"]),
     supabase
       .from("obrigacoes")
-      .select("id_obrigacao, competencia, data_vencimento, status, obrigacoes_catalogo(sigla, nome)")
+      .select(
+        "id_obrigacao, competencia, data_vencimento, status, obrigacoes_catalogo(sigla, nome)"
+      )
       .eq("id_cliente", idCliente)
       .in("status", ["PENDENTE", "EM_ANDAMENTO", "ATRASADA"])
-      .gte("data_vencimento", hoje)
       .order("data_vencimento")
       .limit(5),
     supabase

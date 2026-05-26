@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import {
   AlertTriangle,
   ArrowRight,
@@ -9,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { getServerSupabase } from "@/lib/supabase/server-cache";
 import { formatBRL, formatDate } from "@/lib/utils";
 
 type ObrigRow = {
@@ -52,15 +51,13 @@ function isoDaqui(dias: number) {
 }
 
 export default async function InicioPage() {
-  const cookieStore = await cookies();
-  const supabase = createSupabaseServerClient({
-    getAll: () => cookieStore.getAll(),
-    set: (name, value, options) => cookieStore.set(name, value, options),
-  });
+  const supabase = await getServerSupabase();
 
   const hoje = isoHoje();
   const em7dias = isoDaqui(7);
+  const inicioMes = `${hoje.slice(0, 7)}-01`;
 
+  // Tudo em paralelo — 8 queries no Promise.all (era 10 + outras nas listas)
   const [
     clientesAtivos,
     obrigPend,
@@ -101,7 +98,7 @@ export default async function InicioPage() {
       .from("faturas")
       .select("valor")
       .eq("status", "PAGA")
-      .gte("data_pagamento", `${hoje.slice(0, 7)}-01`),
+      .gte("data_pagamento", inicioMes),
     supabase
       .from("obrigacoes")
       .select(
@@ -142,10 +139,7 @@ export default async function InicioPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Início"
-        subtitle="Visão geral do escritório"
-      />
+      <PageHeader title="Início" subtitle="Visão geral do escritório" />
 
       {/* Cards principais */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
