@@ -59,7 +59,9 @@ function ObrigacoesInner() {
   const isAdmin = user?.perfil === "Admin";
   const sp = useSearchParams();
 
-  const [competencia, setCompetencia] = useState(competenciaAtual());
+  const [competencia, setCompetencia] = useState(
+    sp.get("competencia") ?? competenciaAtual()
+  );
   const [status, setStatus] = useState(sp.get("status") ?? "");
   const [idCliente, setIdCliente] = useState(sp.get("cliente") ?? "");
 
@@ -197,12 +199,24 @@ function ObrigacoesInner() {
           <label className="block text-xs uppercase text-gray-500 mb-1">
             Competência
           </label>
-          <input
-            type="month"
-            className={inputClass}
-            value={competencia}
-            onChange={(e) => setCompetencia(e.target.value)}
-          />
+          <div className="flex gap-1 items-center">
+            <input
+              type="month"
+              className={inputClass}
+              value={competencia}
+              onChange={(e) => setCompetencia(e.target.value)}
+            />
+            {competencia && (
+              <button
+                type="button"
+                onClick={() => setCompetencia("")}
+                className="text-xs text-gray-500 hover:text-verde-dark px-2"
+                title="Limpar"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-xs uppercase text-gray-500 mb-1">

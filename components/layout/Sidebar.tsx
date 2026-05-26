@@ -22,6 +22,7 @@ import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { Logo } from "@/components/ui/Logo";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 type Item = { href: string; label: string; icon: React.ElementType };
 
@@ -69,7 +70,7 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
     <aside className="w-60 shrink-0 bg-white border-r border-card-border flex flex-col">
       <div className="px-4 py-5 border-b border-card-border flex items-center gap-3">
         <Logo size={48} showSubtitle={false} src={cfg?.logo_url ?? null} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="font-serif text-[15px] font-bold text-verde-dark leading-tight tracking-wide truncate">
             {cfg?.nome_escritorio?.split(" ")[0] ?? "JSP"}
           </div>
@@ -77,6 +78,7 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
             {variant === "interno" ? "Equipe interna" : "Portal do cliente"}
           </div>
         </div>
+        <NotificationBell />
       </div>
 
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">

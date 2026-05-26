@@ -46,7 +46,9 @@ function HonorariosInner() {
   const isAdmin = user?.perfil === "Admin";
   const sp = useSearchParams();
 
-  const [competencia, setCompetencia] = useState(competenciaAtual());
+  // Default: sem filtro de competência (mostra tudo). Usuario pode escolher
+  // ou clicar em "Mês atual" pra filtrar rápido.
+  const [competencia, setCompetencia] = useState(sp.get("competencia") ?? "");
   const [status, setStatus] = useState(sp.get("status") ?? "");
   const [idCliente, setIdCliente] = useState(sp.get("cliente") ?? "");
 
@@ -184,12 +186,33 @@ function HonorariosInner() {
           <label className="block text-xs uppercase text-gray-500 mb-1">
             Competência
           </label>
-          <input
-            type="month"
-            className={inputClass}
-            value={competencia}
-            onChange={(e) => setCompetencia(e.target.value)}
-          />
+          <div className="flex gap-1 items-center">
+            <input
+              type="month"
+              className={inputClass}
+              value={competencia}
+              onChange={(e) => setCompetencia(e.target.value)}
+            />
+            {competencia && (
+              <button
+                type="button"
+                onClick={() => setCompetencia("")}
+                className="text-xs text-gray-500 hover:text-verde-dark px-2"
+                title="Limpar"
+              >
+                ×
+              </button>
+            )}
+            {!competencia && (
+              <button
+                type="button"
+                onClick={() => setCompetencia(competenciaAtual())}
+                className="text-xs text-gold hover:text-verde-dark px-2 whitespace-nowrap"
+              >
+                Mês atual
+              </button>
+            )}
+          </div>
         </div>
         <div>
           <label className="block text-xs uppercase text-gray-500 mb-1">
