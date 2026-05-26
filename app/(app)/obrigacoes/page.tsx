@@ -20,9 +20,29 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
-import { ObrigacaoFormModal } from "@/components/obrigacoes/ObrigacaoFormModal";
-import { GeradorMesModal } from "@/components/obrigacoes/GeradorMesModal";
-import { ImportarObrigacoesModal } from "@/components/obrigacoes/ImportarObrigacoesModal";
+import dynamic from "next/dynamic";
+
+const ObrigacaoFormModal = dynamic(
+  () =>
+    import("@/components/obrigacoes/ObrigacaoFormModal").then((m) => ({
+      default: m.ObrigacaoFormModal,
+    })),
+  { ssr: false }
+);
+const GeradorMesModal = dynamic(
+  () =>
+    import("@/components/obrigacoes/GeradorMesModal").then((m) => ({
+      default: m.GeradorMesModal,
+    })),
+  { ssr: false }
+);
+const ImportarObrigacoesModal = dynamic(
+  () =>
+    import("@/components/obrigacoes/ImportarObrigacoesModal").then((m) => ({
+      default: m.ImportarObrigacoesModal,
+    })),
+  { ssr: false }
+);
 import { useClientes } from "@/lib/hooks/useClientes";
 import {
   useObrigacoes,

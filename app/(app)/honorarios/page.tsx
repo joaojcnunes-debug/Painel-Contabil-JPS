@@ -10,8 +10,22 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
-import { FaturaFormModal } from "@/components/faturas/FaturaFormModal";
-import { GeradorFaturasModal } from "@/components/faturas/GeradorFaturasModal";
+import dynamic from "next/dynamic";
+
+const FaturaFormModal = dynamic(
+  () =>
+    import("@/components/faturas/FaturaFormModal").then((m) => ({
+      default: m.FaturaFormModal,
+    })),
+  { ssr: false }
+);
+const GeradorFaturasModal = dynamic(
+  () =>
+    import("@/components/faturas/GeradorFaturasModal").then((m) => ({
+      default: m.GeradorFaturasModal,
+    })),
+  { ssr: false }
+);
 import { useClientes } from "@/lib/hooks/useClientes";
 import { useFaturas, type FaturaComCliente } from "@/lib/hooks/useFaturas";
 import { useUserStore } from "@/lib/store";

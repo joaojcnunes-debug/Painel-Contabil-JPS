@@ -4,7 +4,15 @@ import { useState } from "react";
 import { Edit2, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
-import { UsuarioFormModal } from "@/components/usuarios/UsuarioFormModal";
+import dynamic from "next/dynamic";
+
+const UsuarioFormModal = dynamic(
+  () =>
+    import("@/components/usuarios/UsuarioFormModal").then((m) => ({
+      default: m.UsuarioFormModal,
+    })),
+  { ssr: false }
+);
 import { useUsuarios } from "@/lib/hooks/useUsuarios";
 import { useClientes } from "@/lib/hooks/useClientes";
 import { useUserStore } from "@/lib/store";

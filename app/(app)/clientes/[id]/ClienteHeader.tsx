@@ -2,9 +2,17 @@
 
 import { useState } from "react";
 import { Edit2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
-import { ClienteFormModal } from "@/components/clientes/ClienteFormModal";
 import type { Cliente } from "@/lib/supabase/types";
+
+const ClienteFormModal = dynamic(
+  () =>
+    import("@/components/clientes/ClienteFormModal").then((m) => ({
+      default: m.ClienteFormModal,
+    })),
+  { ssr: false }
+);
 
 export function ClienteHeaderActions({ cliente }: { cliente: Cliente }) {
   const [open, setOpen] = useState(false);

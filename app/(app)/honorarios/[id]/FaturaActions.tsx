@@ -2,15 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Check, Edit2, Printer, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { FaturaFormModal } from "@/components/faturas/FaturaFormModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useUserStore } from "@/lib/store";
 import type { Cliente, Fatura } from "@/lib/supabase/types";
+
+const FaturaFormModal = dynamic(
+  () =>
+    import("@/components/faturas/FaturaFormModal").then((m) => ({
+      default: m.FaturaFormModal,
+    })),
+  { ssr: false }
+);
 
 export function FaturaActions({
   fatura,

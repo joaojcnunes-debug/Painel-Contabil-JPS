@@ -9,7 +9,15 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
-import { DocumentoUploadModal } from "@/components/documentos/DocumentoUploadModal";
+import dynamic from "next/dynamic";
+
+const DocumentoUploadModal = dynamic(
+  () =>
+    import("@/components/documentos/DocumentoUploadModal").then((m) => ({
+      default: m.DocumentoUploadModal,
+    })),
+  { ssr: false }
+);
 import { useClientes } from "@/lib/hooks/useClientes";
 import { useDocumentos } from "@/lib/hooks/useDocumentos";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";

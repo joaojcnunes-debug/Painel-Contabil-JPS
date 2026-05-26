@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Check, Edit2, RotateCcw, Trash2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
-import { ObrigacaoFormModal } from "@/components/obrigacoes/ObrigacaoFormModal";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+const ObrigacaoFormModal = dynamic(
+  () =>
+    import("@/components/obrigacoes/ObrigacaoFormModal").then((m) => ({
+      default: m.ObrigacaoFormModal,
+    })),
+  { ssr: false }
+);
 import { useUserStore } from "@/lib/store";
 import type {
   Cliente,

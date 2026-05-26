@@ -2,16 +2,31 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Edit2, Plus, Upload } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
-import { ClienteFormModal } from "@/components/clientes/ClienteFormModal";
-import { ImportarClientesModal } from "@/components/clientes/ImportarClientesModal";
 import { useClientes } from "@/lib/hooks/useClientes";
 import { formatCNPJ, formatBRL } from "@/lib/utils";
 import { csvData, csvMoeda } from "@/lib/csv";
 import type { Cliente } from "@/lib/supabase/types";
+
+// Lazy-load dos modais — só baixa o JS quando o usuário clica pra abrir
+const ClienteFormModal = dynamic(
+  () =>
+    import("@/components/clientes/ClienteFormModal").then((m) => ({
+      default: m.ClienteFormModal,
+    })),
+  { ssr: false }
+);
+const ImportarClientesModal = dynamic(
+  () =>
+    import("@/components/clientes/ImportarClientesModal").then((m) => ({
+      default: m.ImportarClientesModal,
+    })),
+  { ssr: false }
+);
 
 const REGIME_LABEL: Record<string, string> = {
   SIMPLES_NACIONAL: "Simples Nacional",
