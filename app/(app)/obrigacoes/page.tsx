@@ -14,6 +14,7 @@ import {
   Settings2,
   Sparkles,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
 import { inputClass } from "@/components/ui/Field";
 import { ObrigacaoFormModal } from "@/components/obrigacoes/ObrigacaoFormModal";
 import { GeradorMesModal } from "@/components/obrigacoes/GeradorMesModal";
+import { ImportarObrigacoesModal } from "@/components/obrigacoes/ImportarObrigacoesModal";
 import { useClientes } from "@/lib/hooks/useClientes";
 import {
   useObrigacoes,
@@ -76,6 +78,7 @@ function ObrigacoesInner() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Obrigacao | null>(null);
   const [gerOpen, setGerOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const qc = useQueryClient();
   const marcarEntregue = useMutation({
@@ -179,6 +182,13 @@ function ObrigacoesInner() {
                 <Settings2 size={14} /> Catálogo
               </Link>
             )}
+            <Button
+              variant="secondary"
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Upload size={16} /> Importar
+            </Button>
             <Button
               variant="secondary"
               onClick={() => setGerOpen(true)}
@@ -383,6 +393,12 @@ function ObrigacoesInner() {
       <GeradorMesModal
         open={gerOpen}
         onClose={() => setGerOpen(false)}
+        clientes={clientes}
+        catalogo={catalogo}
+      />
+      <ImportarObrigacoesModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
         clientes={clientes}
         catalogo={catalogo}
       />
