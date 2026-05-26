@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
+  AlertTriangle,
   CalendarCheck,
   MailCheck,
   Receipt,
@@ -32,6 +33,43 @@ export default function ConfigPage() {
     emailTeste
   );
   const alertasFat = useAlertaMutation("enviar-alertas-faturas", emailTeste);
+
+  const atualizarAtrasos = useMutation({
+    mutationFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.functions.invoke(
+        "atualizar-status-vencidos",
+        { body: {} }
+      );
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.text === "function") {
+            const txt = await ctx.text();
+            const j = JSON.parse(txt);
+            if (j?.error) msg = j.error;
+          }
+        } catch {
+          /* mantém */
+        }
+        throw new Error(msg);
+      }
+      return data as {
+        ok: boolean;
+        obrigacoes_atualizadas: number;
+        faturas_atualizadas: number;
+      };
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["obrigacoes"] });
+      qc.invalidateQueries({ queryKey: ["faturas"] });
+      toast.success(
+        `${r.obrigacoes_atualizadas} obrigações e ${r.faturas_atualizadas} faturas marcadas como atrasadas.`
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [nome, setNome] = useState("");
   const [razao, setRazao] = useState("");
@@ -287,6 +325,31 @@ export default function ConfigPage() {
               Precisa das Edge Functions <code>enviar-alertas-vencimento</code> e{" "}
               <code>enviar-alertas-faturas</code> deployadas + secret{" "}
               <code>RESEND_API_KEY</code>.
+            </p>
+          </div>
+
+          <div className="bg-white border border-card-border rounded-xl p-5">
+            <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3 flex items-center gap-2">
+              <AlertTriangle size={14} className="text-gold" /> Manutenção
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Marca obrigações e faturas vencidas como ATRASADA. Ideal rodar
+              1x ao dia (cron). Pode acionar manual aqui também.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => atualizarAtrasos.mutate()}
+              disabled={atualizarAtrasos.isPending}
+              className="w-full flex items-center justify-center gap-2 text-xs"
+            >
+              {atualizarAtrasos.isPending
+                ? "Processando..."
+                : "Atualizar status de atrasos agora"}
+            </Button>
+            <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+              Precisa da Edge Function <code>atualizar-status-vencidos</code>{" "}
+              deployada.
             </p>
           </div>
 
