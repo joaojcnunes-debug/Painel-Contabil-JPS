@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  BookText,
   Edit2,
   FileBarChart2,
   Paperclip,
@@ -174,6 +175,12 @@ function LancamentosInner() {
               className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
             >
               <FileBarChart2 size={14} /> DRE
+            </Link>
+            <Link
+              href={`/lancamentos/demonstracoes${idCliente ? `?cliente=${idCliente}` : ""}`}
+              className="px-3 py-2 text-sm text-gray-600 hover:text-verde-dark border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50"
+            >
+              <BookText size={14} /> Demonstrações
             </Link>
             {isEquipe && (
               <Link
