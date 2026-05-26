@@ -171,6 +171,23 @@ export interface Lancamento {
   updated_at: string | null;
 }
 
+export interface BancoMovimento {
+  id_movimento: string;
+  id_cliente: string;
+  data_movimento: string;
+  descricao: string;
+  valor: number;
+  banco: string | null;
+  conta_bancaria: string | null;
+  conciliado: boolean;
+  id_lancamento: string | null;
+  ignorado: boolean;
+  motivo_ignorado: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface LancamentoModelo {
   id_modelo: string;
   id_cliente: string;
@@ -238,6 +255,7 @@ export interface Database {
       plano_contas: TableShape<PlanoConta>;
       lancamentos: TableShape<Lancamento>;
       lancamentos_modelos: TableShape<LancamentoModelo>;
+      banco_movimentos: TableShape<BancoMovimento>;
     };
   };
 }
