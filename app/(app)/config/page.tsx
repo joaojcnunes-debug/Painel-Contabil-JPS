@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   MailCheck,
   Receipt,
+  Repeat,
   Save,
   Send,
   Settings2,
@@ -34,6 +35,48 @@ export default function ConfigPage() {
     emailTeste
   );
   const alertasFat = useAlertaMutation("enviar-alertas-faturas", emailTeste);
+
+  const gerarRecorrentes = useMutation({
+    mutationFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.functions.invoke(
+        "gerar-recorrentes-mes",
+        { body: {} }
+      );
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.text === "function") {
+            const txt = await ctx.text();
+            const j = JSON.parse(txt);
+            if (j?.error) msg = j.error;
+          }
+        } catch {
+          /* mantém */
+        }
+        throw new Error(msg);
+      }
+      return data as {
+        ok: boolean;
+        competencia: string;
+        criados: number;
+        pulados: number;
+        mensagem?: string;
+      };
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["lancamentos"] });
+      if (r.mensagem) {
+        toast.success(r.mensagem);
+      } else {
+        toast.success(
+          `${r.criados} lançament${r.criados === 1 ? "o" : "os"} gerado${r.criados === 1 ? "" : "s"} em ${r.competencia}${r.pulados ? ` • ${r.pulados} já existiam` : ""}`
+        );
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const atualizarAtrasos = useMutation({
     mutationFn: async () => {
@@ -317,6 +360,32 @@ export default function ConfigPage() {
               Precisa das Edge Functions <code>enviar-alertas-vencimento</code> e{" "}
               <code>enviar-alertas-faturas</code> deployadas + secret{" "}
               <code>RESEND_API_KEY</code>.
+            </p>
+          </div>
+
+          <div className="bg-white border border-card-border rounded-xl p-5">
+            <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3 flex items-center gap-2">
+              <Repeat size={14} className="text-gold" /> Lançamentos recorrentes
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Gera no banco os lançamentos do mês corrente a partir dos
+              modelos ativos. Ideal cron mensal (dia 1º). Idempotente.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => gerarRecorrentes.mutate()}
+              disabled={gerarRecorrentes.isPending}
+              className="w-full flex items-center justify-center gap-2 text-xs"
+            >
+              <Repeat size={12} />
+              {gerarRecorrentes.isPending
+                ? "Gerando..."
+                : "Gerar mês corrente agora"}
+            </Button>
+            <p className="text-[11px] text-gray-400 mt-3 leading-relaxed">
+              Precisa da Edge Function{" "}
+              <code>gerar-recorrentes-mes</code> deployada.
             </p>
           </div>
 
