@@ -35,6 +35,10 @@ export default function ConfigPage() {
     emailTeste
   );
   const alertasFat = useAlertaMutation("enviar-alertas-faturas", emailTeste);
+  const relatorioMensal = useAlertaMutation(
+    "enviar-relatorio-mensal",
+    emailTeste
+  );
 
   const gerarRecorrentes = useMutation({
     mutationFn: async () => {
@@ -356,9 +360,21 @@ export default function ConfigPage() {
               confirmTxt="Enviar e-mails REAIS de cobrança para todos os clientes com faturas em aberto/atrasadas?"
             />
 
+            <div className="my-4 border-t border-card-border" />
+
+            <BlocoAlerta
+              icon={MailCheck}
+              titulo="Relatório mensal"
+              descricao="Resumo do mês anterior (números + link pro portal). Ideal cron dia 5."
+              mutation={relatorioMensal}
+              emailTeste={emailTeste}
+              confirmTxt="Enviar e-mails REAIS de relatório mensal para todos os clientes ativos com atividade no mês anterior?"
+            />
+
             <p className="text-[11px] text-gray-400 mt-4 leading-relaxed">
-              Precisa das Edge Functions <code>enviar-alertas-vencimento</code> e{" "}
-              <code>enviar-alertas-faturas</code> deployadas + secret{" "}
+              Precisa das Edge Functions <code>enviar-alertas-vencimento</code>,{" "}
+              <code>enviar-alertas-faturas</code> e{" "}
+              <code>enviar-relatorio-mensal</code> deployadas + secret{" "}
               <code>RESEND_API_KEY</code>.
             </p>
           </div>
