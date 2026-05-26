@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Check, Edit2, Plus, Sparkles, X } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { ExportCsvButton } from "@/components/ui/ExportCsvButton";
@@ -278,7 +279,12 @@ function HonorariosInner() {
               faturas.map((f) => (
                 <tr key={f.id_fatura} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-900 font-medium">
-                    {f.clientes?.razao_social ?? "—"}
+                    <Link
+                      href={`/honorarios/${f.id_fatura}`}
+                      className="hover:text-verde-dark"
+                    >
+                      {f.clientes?.razao_social ?? "—"}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{f.competencia}</td>
                   <td className="px-4 py-3 text-gray-600">
