@@ -142,6 +142,35 @@ export interface Fatura {
   updated_at: string | null;
 }
 
+export type TipoLancamento = "RECEITA" | "DESPESA";
+
+export interface PlanoConta {
+  id_conta: string;
+  codigo: string;
+  nome: string;
+  tipo: TipoLancamento;
+  grupo: string | null;
+  descricao: string | null;
+  ativo: boolean;
+  created_at: string;
+}
+
+export interface Lancamento {
+  id_lancamento: string;
+  id_cliente: string;
+  id_conta: string;
+  data_lancamento: string;
+  competencia: string | null;
+  tipo: TipoLancamento;
+  valor: number;
+  descricao: string;
+  documento_ref: string | null;
+  observacoes: string | null;
+  id_documento: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ObrigacaoComentario {
   id_comentario: string;
   id_obrigacao: string;
@@ -191,6 +220,8 @@ export interface Database {
       faturas: TableShape<Fatura>;
       configuracoes: TableShape<Configuracao>;
       obrigacoes_comentarios: TableShape<ObrigacaoComentario>;
+      plano_contas: TableShape<PlanoConta>;
+      lancamentos: TableShape<Lancamento>;
     };
   };
 }
