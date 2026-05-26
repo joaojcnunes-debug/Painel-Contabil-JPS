@@ -6,7 +6,11 @@ import {
   Building2,
   CalendarCheck,
   FileText,
+  Mail,
+  MapPin,
+  Phone,
   Receipt,
+  User as UserIcon,
 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
@@ -308,42 +312,131 @@ export default async function ClienteDetalhe({
         <ContatosSection idCliente={id} />
       </div>
 
-      {/* Bloco financeiro/observações */}
-      {(cliente.honorario_mensal != null ||
-        cliente.dia_vencimento ||
-        cliente.inicio_contrato ||
-        cliente.observacoes) && (
-        <div className="mt-4 bg-white border border-card-border rounded-xl p-5">
+      {/* Bloco contrato + endereço + responsável */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+        <div className="bg-white border border-card-border rounded-xl p-5">
           <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3">
             Contrato
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <div className="text-xs text-gray-500 uppercase">Honorário</div>
-              <div className="text-gray-800 font-medium">
-                {formatBRL(cliente.honorario_mensal)}
-              </div>
+          <dl className="space-y-2 text-sm">
+            <Item label="Honorário" value={formatBRL(cliente.honorario_mensal)} />
+            <Item
+              label="Dia vencto"
+              value={cliente.dia_vencimento ?? "—"}
+            />
+            <Item label="Início" value={formatDate(cliente.inicio_contrato)} />
+            {cliente.email && (
+              <Item
+                label="E-mail"
+                value={
+                  <a
+                    href={`mailto:${cliente.email}`}
+                    className="text-verde-dark hover:underline"
+                  >
+                    {cliente.email}
+                  </a>
+                }
+              />
+            )}
+          </dl>
+        </div>
+
+        <div className="bg-white border border-card-border rounded-xl p-5">
+          <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3 flex items-center gap-2">
+            <MapPin size={14} className="text-gold" /> Endereço
+          </h3>
+          {cliente.logradouro || cliente.municipio ? (
+            <div className="text-sm text-gray-700 leading-relaxed">
+              {cliente.logradouro}
+              {cliente.numero && `, ${cliente.numero}`}
+              {cliente.complemento && ` — ${cliente.complemento}`}
+              {cliente.bairro && (
+                <>
+                  <br />
+                  {cliente.bairro}
+                </>
+              )}
+              {(cliente.municipio || cliente.estado) && (
+                <>
+                  <br />
+                  {cliente.municipio}
+                  {cliente.estado && ` — ${cliente.estado}`}
+                </>
+              )}
+              {cliente.cep && (
+                <>
+                  <br />
+                  <span className="text-xs text-gray-500">CEP {cliente.cep}</span>
+                </>
+              )}
             </div>
-            <div>
-              <div className="text-xs text-gray-500 uppercase">Dia vencto</div>
-              <div className="text-gray-800">
-                {cliente.dia_vencimento ?? "—"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-500 uppercase">Início</div>
-              <div className="text-gray-800">
-                {formatDate(cliente.inicio_contrato)}
-              </div>
-            </div>
-          </div>
-          {cliente.observacoes && (
-            <div className="mt-3 text-sm text-gray-600 whitespace-pre-line">
-              {cliente.observacoes}
-            </div>
+          ) : (
+            <div className="text-xs text-gray-500">Sem endereço cadastrado</div>
           )}
         </div>
+
+        <div className="bg-white border border-card-border rounded-xl p-5">
+          <h3 className="font-serif text-sm font-semibold text-verde-dark mb-3 flex items-center gap-2">
+            <UserIcon size={14} className="text-gold" /> Responsável legal
+          </h3>
+          {cliente.responsavel_nome ? (
+            <div className="space-y-1.5 text-sm">
+              <div className="font-medium text-gray-800">
+                {cliente.responsavel_nome}
+              </div>
+              {cliente.responsavel_cpf && (
+                <div className="text-xs text-gray-500 font-mono">
+                  CPF {formatCPF(cliente.responsavel_cpf)}
+                </div>
+              )}
+              {cliente.responsavel_email && (
+                <a
+                  href={`mailto:${cliente.responsavel_email}`}
+                  className="text-xs text-gray-600 hover:text-verde-dark inline-flex items-center gap-1"
+                >
+                  <Mail size={11} /> {cliente.responsavel_email}
+                </a>
+              )}
+              {cliente.responsavel_telefone && (
+                <a
+                  href={`tel:${cliente.responsavel_telefone.replace(/\D/g, "")}`}
+                  className="text-xs text-gray-600 hover:text-verde-dark inline-flex items-center gap-1 block"
+                >
+                  <Phone size={11} /> {cliente.responsavel_telefone}
+                </a>
+              )}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500">Sem responsável cadastrado</div>
+          )}
+        </div>
+      </div>
+
+      {cliente.observacoes && (
+        <div className="mt-4 bg-white border border-card-border rounded-xl p-5">
+          <h3 className="font-serif text-sm font-semibold text-verde-dark mb-2">
+            Observações
+          </h3>
+          <div className="text-sm text-gray-600 whitespace-pre-line">
+            {cliente.observacoes}
+          </div>
+        </div>
       )}
+    </div>
+  );
+}
+
+function Item({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-xs text-gray-500 uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-gray-800 text-right">{value}</dd>
     </div>
   );
 }

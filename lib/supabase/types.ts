@@ -22,18 +22,35 @@ export type RegimeTributario =
 
 export type StatusCliente = "Ativo" | "Inativo" | "Suspenso";
 
+export type TipoCadastro = "PJ" | "PF";
+
 export interface Cliente {
   id_cliente: string;
   razao_social: string;
   nome_fantasia: string | null;
+  tipo_cadastro: TipoCadastro;
   cnpj: string | null;
   cpf: string | null;
+  email: string | null;
   regime: RegimeTributario;
   atividade_principal: string | null;
   inicio_contrato: string | null;
   status: StatusCliente;
   honorario_mensal: number | null;
   dia_vencimento: number | null;
+  // Endereço
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  municipio: string | null;
+  estado: string | null;
+  // Responsável legal
+  responsavel_nome: string | null;
+  responsavel_cpf: string | null;
+  responsavel_email: string | null;
+  responsavel_telefone: string | null;
   observacoes: string | null;
   created_at: string;
   updated_at: string | null;
