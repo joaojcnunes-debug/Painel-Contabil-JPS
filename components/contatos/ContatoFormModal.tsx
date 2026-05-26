@@ -120,7 +120,7 @@ export function ContatoFormModal({ open, onClose, idCliente, contato }: Props) {
             placeholder="Sócio, financeiro, RH..."
           />
         </Field>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="E-mail">
             <input
               type="email"

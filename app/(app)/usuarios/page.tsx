@@ -58,8 +58,8 @@ export default function UsuariosPage() {
         }
       />
 
-      <div className="bg-white border border-card-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-card-border rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-gray-50 text-gray-600 text-left text-xs uppercase">
             <tr>
               <th className="px-4 py-3">Nome</th>

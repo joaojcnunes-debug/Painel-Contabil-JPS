@@ -180,7 +180,7 @@ export function ObrigacaoFormModal({
           </select>
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Competência" required hint="Mês de referência">
             <input
               type="month"
@@ -199,7 +199,7 @@ export function ObrigacaoFormModal({
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Data de entrega">
             <input
               type="date"

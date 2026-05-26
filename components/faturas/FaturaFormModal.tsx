@@ -144,7 +144,7 @@ export function FaturaFormModal({ open, onClose, fatura, clientes }: Props) {
           </select>
         </Field>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Field label="Competência" required>
             <input
               type="month"
@@ -171,7 +171,7 @@ export function FaturaFormModal({ open, onClose, fatura, clientes }: Props) {
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Data de pagamento">
             <input
               type="date"

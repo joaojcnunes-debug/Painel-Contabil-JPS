@@ -107,7 +107,7 @@ export function CatalogoFormModal({ open, onClose, item }: Props) {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Field label="Sigla" required>
             <input
               className={inputClass}
@@ -128,7 +128,7 @@ export function CatalogoFormModal({ open, onClose, item }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Field label="Esfera">
             <select
               className={inputClass}

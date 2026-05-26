@@ -315,7 +315,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
             </Field>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {tipo === "PJ" ? (
               <Field label="CNPJ" hint="Sai do campo pra buscar dados na Receita">
                 <div className="flex gap-2">
@@ -365,7 +365,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
 
         {/* ─── Tributação / Contrato ─── */}
         <Bloco titulo="Tributação e contrato">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Regime tributário" required>
               <select
                 className={inputClass}
@@ -403,7 +403,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
             />
           </Field>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Field label="Início do contrato">
               <input
                 type="date"
@@ -434,7 +434,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
 
         {/* ─── Endereço ─── */}
         <Bloco titulo="Endereço">
-          <div className="grid grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-end">
             <Field label="CEP">
               <input
                 className={inputClass}
@@ -461,7 +461,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="col-span-3">
               <Field label="Logradouro">
                 <input
@@ -480,7 +480,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Complemento">
               <input
                 className={inputClass}
@@ -498,7 +498,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
             </Field>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="col-span-2">
               <Field label="Município">
                 <input
@@ -527,7 +527,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
 
         {/* ─── Responsável ─── */}
         <Bloco titulo="Responsável legal">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Nome completo">
               <input
                 className={inputClass}
@@ -544,7 +544,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="E-mail">
               <input
                 type="email"

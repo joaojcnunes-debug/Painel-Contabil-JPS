@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { AppShell } from "@/components/layout/AppShell";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
 
 export default async function InternoLayout({
@@ -28,10 +28,5 @@ export default async function InternoLayout({
 
   if (usuario?.perfil === "Cliente") redirect("/portal");
 
-  return (
-    <div className="min-h-screen flex">
-      <Sidebar variant="interno" />
-      <main className="flex-1 p-8 overflow-y-auto">{children}</main>
-    </div>
-  );
+  return <AppShell variant="interno">{children}</AppShell>;
 }
