@@ -11,6 +11,7 @@ import {
   ArrowUpCircle,
   Edit2,
   FileBarChart2,
+  Paperclip,
   Plus,
   Repeat,
   Settings2,
@@ -124,6 +125,32 @@ function LancamentosInner() {
   function editar(l: LancamentoComJoin) {
     setEditing(l);
     setFormOpen(true);
+  }
+
+  async function baixarComprovante(l: LancamentoComJoin) {
+    if (!l.id_documento) return;
+    const supabase = createSupabaseBrowserClient();
+    // Pega o path do documento
+    const { data: doc, error: errDoc } = await supabase
+      .from("documentos")
+      .select("arquivo_path, arquivo_nome")
+      .eq("id_documento", l.id_documento)
+      .single();
+    if (errDoc || !doc) {
+      toast.error("Comprovante não encontrado");
+      return;
+    }
+    const docTyped = doc as { arquivo_path: string; arquivo_nome: string };
+    const { data: signed, error: errUrl } = await supabase.storage
+      .from("documentos")
+      .createSignedUrl(docTyped.arquivo_path, 60, {
+        download: docTyped.arquivo_nome,
+      });
+    if (errUrl || !signed?.signedUrl) {
+      toast.error("Não foi possível gerar link de download");
+      return;
+    }
+    window.open(signed.signedUrl, "_blank");
   }
 
   return (
@@ -317,7 +344,20 @@ function LancamentosInner() {
                     <div>{l.plano_contas?.nome}</div>
                   </td>
                   <td className="px-4 py-3 text-gray-700">
-                    {l.descricao}
+                    <div className="flex items-center gap-1.5">
+                      <span>{l.descricao}</span>
+                      {l.id_documento && (
+                        <button
+                          type="button"
+                          onClick={() => baixarComprovante(l)}
+                          className="p-0.5 rounded hover:bg-verde-light text-gold hover:text-verde-dark"
+                          title="Baixar comprovante anexo"
+                          aria-label="Baixar comprovante"
+                        >
+                          <Paperclip size={13} />
+                        </button>
+                      )}
+                    </div>
                     {l.documento_ref && (
                       <div className="text-xs text-gray-500">
                         Doc: {l.documento_ref}

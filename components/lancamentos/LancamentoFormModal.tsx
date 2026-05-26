@@ -3,10 +3,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import dynamic from "next/dynamic";
+import { Upload, X } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useDocumentosPorCliente } from "@/lib/hooks/useDocumentos";
 import { gerarId } from "@/lib/utils";
 import type {
   Cliente,
@@ -14,6 +17,14 @@ import type {
   PlanoConta,
   TipoLancamento,
 } from "@/lib/supabase/types";
+
+const DocumentoUploadModal = dynamic(
+  () =>
+    import("@/components/documentos/DocumentoUploadModal").then((m) => ({
+      default: m.DocumentoUploadModal,
+    })),
+  { ssr: false }
+);
 
 type Props = {
   open: boolean;
@@ -49,6 +60,11 @@ export function LancamentoFormModal({
   const [descricao, setDescricao] = useState("");
   const [docRef, setDocRef] = useState("");
   const [obs, setObs] = useState("");
+  const [idDocumento, setIdDocumento] = useState<string>("");
+  const [uploadOpen, setUploadOpen] = useState(false);
+
+  const qcInner = useQueryClient();
+  const { data: docsCliente = [] } = useDocumentosPorCliente(idCliente);
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +78,7 @@ export function LancamentoFormModal({
     setDescricao(lancamento?.descricao ?? "");
     setDocRef(lancamento?.documento_ref ?? "");
     setObs(lancamento?.observacoes ?? "");
+    setIdDocumento(lancamento?.id_documento ?? "");
   }, [open, lancamento]);
 
   // Filtra contas pelo tipo selecionado
@@ -97,6 +114,7 @@ export function LancamentoFormModal({
         descricao: descricao.trim(),
         documento_ref: docRef.trim() || null,
         observacoes: obs.trim() || null,
+        id_documento: idDocumento || null,
         updated_at: new Date().toISOString(),
       };
       if (isEdit) {
@@ -235,6 +253,52 @@ export function LancamentoFormModal({
           />
         </Field>
 
+        <Field
+          label="Comprovante anexo"
+          hint={
+            idCliente
+              ? "Vincule um arquivo já enviado em Documentos ou suba um novo"
+              : "Selecione o cliente primeiro pra ver os documentos disponíveis"
+          }
+        >
+          <div className="flex gap-2">
+            <select
+              className={`${inputClass} flex-1`}
+              value={idDocumento}
+              onChange={(e) => setIdDocumento(e.target.value)}
+              disabled={!idCliente}
+            >
+              <option value="">Nenhum</option>
+              {docsCliente.map((d) => (
+                <option key={d.id_documento} value={d.id_documento}>
+                  {d.tipo} — {d.arquivo_nome}
+                  {d.competencia ? ` (${d.competencia})` : ""}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setUploadOpen(true)}
+              disabled={!idCliente}
+              className="flex items-center gap-1 whitespace-nowrap"
+              title="Enviar novo documento"
+            >
+              <Upload size={14} /> Novo
+            </Button>
+            {idDocumento && (
+              <button
+                type="button"
+                onClick={() => setIdDocumento("")}
+                className="p-2 text-gray-500 hover:text-red-alert"
+                title="Desvincular"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </Field>
+
         <Field label="Observações">
           <textarea
             className={`${inputClass} min-h-[70px]`}
@@ -243,6 +307,21 @@ export function LancamentoFormModal({
           />
         </Field>
       </form>
+
+      {/* Modal aninhado de upload */}
+      {idCliente && (
+        <DocumentoUploadModal
+          open={uploadOpen}
+          onClose={() => {
+            setUploadOpen(false);
+            qcInner.invalidateQueries({
+              queryKey: ["documentos-cliente", idCliente],
+            });
+          }}
+          fixedIdCliente={idCliente}
+          origem="CONTABILIDADE"
+        />
+      )}
     </Modal>
   );
 }
