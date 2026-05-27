@@ -338,8 +338,9 @@ function notasMock(
 function snMock(
   base: RespostaIntegracao,
   seed: number,
-  _acao: string
+  acao: string
 ): RespostaIntegracao {
+  // Pendências base
   const pendencias: Pendencia[] = [];
   if (seed % 3 === 0) {
     pendencias.push({
@@ -347,12 +348,133 @@ function snMock(
       competencia: competenciaAnterior(0),
     });
   }
+  if (seed % 7 === 0) {
+    pendencias.push({
+      tipo: "DAS em atraso",
+      competencia: competenciaAnterior(2),
+      valor: 1850 + (seed % 1500),
+      vencimento: isoDataAhead(-30),
+    });
+  }
+
+  const rbt12 = 850000 + ((seed * 137) % 4000000);
+  const sublimiteUltrapassado = rbt12 > 3600000;
+
+  if (acao === "consultar_pgdas") {
+    // Últimas 6 competências
+    const declaracoes = [];
+    for (let i = 0; i < 6; i++) {
+      const comp = competenciaAnterior(i);
+      const declarada = i > 0 || seed % 3 !== 0;
+      const retificada = i > 1 && seed % 11 === 0;
+      const receita = 45000 + ((seed * (i + 1) * 7) % 80000);
+      declaracoes.push({
+        competencia: comp,
+        status: !declarada
+          ? "PENDENTE"
+          : retificada
+          ? "RETIFICADA"
+          : "DECLARADA",
+        receita_declarada: receita,
+        valor_das: receita * 0.06 + (seed % 100),
+        data_transmissao: declarada ? isoDataAhead(-(i * 30 + 18)) : null,
+      });
+    }
+    return {
+      ...base,
+      dados: { declaracoes },
+      mensagens: [
+        `${declaracoes.filter((d) => d.status === "DECLARADA").length} declaração(ões) entregues, ${declaracoes.filter((d) => d.status === "PENDENTE").length} pendente(s).`,
+      ],
+    };
+  }
+
+  if (acao === "gerar_das") {
+    const competencia = competenciaAnterior(0);
+    const receita = 45000 + (seed % 70000);
+    const valor = receita * 0.06 + (seed % 100);
+    return {
+      ...base,
+      dados: {
+        das_gerado: {
+          competencia,
+          numero: `2${(seed % 9000) + 1000}.${(seed % 9000) + 1000}.${(seed % 9000) + 1000}`,
+          codigo_barras: `85800000${(seed % 90000) + 10000}-0 14180280000-0 04031${competencia.replace("-", "")}-0`,
+          vencimento: isoDataAhead(20),
+          valor,
+          receita_apurada: receita,
+        },
+      },
+      mensagens: [`DAS gerado pra ${competencia}. Vencimento dia 20.`],
+    };
+  }
+
+  if (acao === "consultar_parcelamentos") {
+    const parcelamentos = [];
+    if (seed % 3 === 0) {
+      parcelamentos.push({
+        numero: `${(seed % 9000) + 1000}.${(seed % 9000) + 1000}.${(seed % 9000) + 1000}`,
+        tipo: "Simples Nacional — Lei 12.996/14",
+        data_adesao: isoDataAhead(-365 - (seed % 365)),
+        parcelas_total: 60,
+        parcelas_pagas: 12 + (seed % 30),
+        valor_original: 12000 + (seed % 30000),
+        saldo_devedor: 8000 + (seed % 20000),
+        proxima_parcela_valor: 450 + (seed % 800),
+        proxima_parcela_vencimento: isoDataAhead(15 - (seed % 30)),
+        status: "EM_DIA",
+      });
+    }
+    if (seed % 9 === 0) {
+      parcelamentos.push({
+        numero: `${(seed % 9000) + 5000}.${(seed % 9000) + 1000}.${(seed % 9000) + 1000}`,
+        tipo: "PERT — Lei 13.496/17",
+        data_adesao: isoDataAhead(-900),
+        parcelas_total: 175,
+        parcelas_pagas: 80 + (seed % 30),
+        valor_original: 45000 + (seed % 50000),
+        saldo_devedor: 22000 + (seed % 30000),
+        proxima_parcela_valor: 250 + (seed % 400),
+        proxima_parcela_vencimento: isoDataAhead(20 - (seed % 30)),
+        status: "EM_DIA",
+      });
+    }
+    return {
+      ...base,
+      dados: { parcelamentos },
+      mensagens: [
+        parcelamentos.length === 0
+          ? "Nenhum parcelamento ativo."
+          : `${parcelamentos.length} parcelamento(s) em andamento.`,
+      ],
+    };
+  }
+
+  if (acao === "checar_sublimite") {
+    return {
+      ...base,
+      dados: {
+        rbt12,
+        sublimite_estadual: 3600000,
+        ultrapassado: sublimiteUltrapassado,
+        margem: 3600000 - rbt12,
+        ano_atual_aproximado: rbt12 * 1.1,
+      },
+      mensagens: [
+        sublimiteUltrapassado
+          ? "ATENÇÃO: RBT12 ultrapassou o sublimite estadual de R$ 3.6M. ICMS/ISS fora do Simples a partir do mês seguinte."
+          : `RBT12 dentro do sublimite. Margem: R$ ${(3600000 - rbt12).toLocaleString("pt-BR")}.`,
+      ],
+    };
+  }
+
+  // Default: consultar pendências
   return {
     ...base,
     pendencias,
     dados: {
-      rbt12_simulado: 850000 + ((seed * 137) % 500000),
-      sublimite_estadual: "OK",
+      rbt12,
+      sublimite_estadual: sublimiteUltrapassado ? "ULTRAPASSADO" : "OK",
       parcelamentos_ativos: seed % 3 === 0 ? 1 : 0,
     },
   };

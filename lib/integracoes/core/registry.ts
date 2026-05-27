@@ -81,6 +81,7 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "PGDAS-D, DEFIS, DAS, parcelamentos, sublimite e pendências.",
     cor: "from-lime-50 to-white border-lime-200",
+    slug: "simples-nacional",
     acoes: [
       { id: "consultar_pgdas", label: "Consultar PGDAS-D do período" },
       { id: "gerar_das", label: "Gerar DAS" },
