@@ -57,11 +57,13 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "ECD, ECF, EFD ICMS/IPI, EFD Contribuições. Importação, leitura e validação de arquivos TXT.",
     cor: "from-amber-50 to-white border-amber-200",
+    slug: "sped",
     acoes: [
       { id: "validar_txt", label: "Validar arquivo TXT" },
-      { id: "gerar_ecd", label: "Gerar ECD do período" },
-      { id: "gerar_ecf", label: "Gerar ECF anual" },
-      { id: "gerar_efd_contribuicoes", label: "Gerar EFD Contribuições" },
+      { id: "consultar_ecd", label: "ECD (Contábil Digital)" },
+      { id: "consultar_ecf", label: "ECF (Contábil Fiscal)" },
+      { id: "consultar_efd_icms", label: "EFD ICMS/IPI" },
+      { id: "consultar_efd_contribuicoes", label: "EFD Contribuições" },
     ],
   },
   {

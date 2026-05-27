@@ -572,17 +572,151 @@ function spedMock(
   seed: number,
   acao: string
 ): RespostaIntegracao {
-  const pendencias: Pendencia[] = [];
+  const anoAtual = new Date().getFullYear();
+
   if (acao === "validar_txt") {
+    const erros = seed % 5 === 0 ? (seed % 3) + 1 : 0;
+    const avisos = (seed % 4) + 1;
     return {
       ...base,
+      dados: {
+        registros: 1200 + (seed % 5000),
+        blocos: 8 + (seed % 8),
+        erros,
+        avisos,
+        problemas: [
+          ...(erros > 0
+            ? [
+                {
+                  tipo: "ERRO",
+                  bloco: "C100",
+                  descricao: "Documento fiscal sem CFOP válido",
+                  linha: 245 + (seed % 100),
+                },
+              ]
+            : []),
+          {
+            tipo: "AVISO",
+            bloco: "0150",
+            descricao: "Fornecedor sem Inscrição Estadual",
+            linha: 18 + (seed % 50),
+          },
+          {
+            tipo: "AVISO",
+            bloco: "K100",
+            descricao: "Bloco K sem movimento (validar se obrigatório)",
+            linha: 890 + (seed % 200),
+          },
+        ],
+      },
       mensagens: [
-        "Validação simulada: 0 erros, 2 avisos.",
-        "Aviso: bloco 0150 com 1 fornecedor sem inscrição estadual.",
+        erros === 0
+          ? `Validação OK: ${avisos} aviso(s), 0 erros.`
+          : `Validação FALHOU: ${erros} erro(s), ${avisos} aviso(s).`,
       ],
-      dados: { linhas: 1234, blocos: 12 },
     };
   }
+
+  if (acao === "consultar_ecd") {
+    const transmitida = seed % 4 !== 0;
+    return {
+      ...base,
+      dados: {
+        exercicio: anoAtual - 1,
+        status: transmitida ? "TRANSMITIDA" : "PENDENTE",
+        prazo: `30/06/${anoAtual}`,
+        data_transmissao: transmitida
+          ? `${anoAtual}-05-${15 + (seed % 12)}`
+          : null,
+        recibo: transmitida
+          ? `ECD${anoAtual - 1}.${(seed % 90000) + 10000}`
+          : null,
+        livros: ["Diário Geral", "Razão Auxiliar", "Balancete"],
+        tamanho_kb: 480 + (seed % 1500),
+      },
+      mensagens: [
+        transmitida
+          ? `ECD ${anoAtual - 1} transmitida com sucesso.`
+          : `ECD ${anoAtual - 1} ainda PENDENTE. Prazo: 30/06.`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_ecf") {
+    const transmitida = seed % 3 !== 0;
+    return {
+      ...base,
+      dados: {
+        exercicio: anoAtual - 1,
+        status: transmitida ? "TRANSMITIDA" : "PENDENTE",
+        prazo: `31/07/${anoAtual}`,
+        data_transmissao: transmitida
+          ? `${anoAtual}-07-${15 + (seed % 10)}`
+          : null,
+        recibo: transmitida
+          ? `ECF${anoAtual - 1}.${(seed % 90000) + 10000}`
+          : null,
+        lucro_real: 145000 + ((seed * 3) % 350000),
+        irpj_devido: 22500 + (seed % 80000),
+        csll_devido: 8100 + (seed % 30000),
+      },
+      mensagens: [
+        transmitida
+          ? `ECF ${anoAtual - 1} transmitida.`
+          : `ECF ${anoAtual - 1} PENDENTE. Prazo: 31/07.`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_efd_icms") {
+    const competencias = [];
+    for (let i = 0; i < 6; i++) {
+      const comp = competenciaAnterior(i);
+      const transmitida = i > 0 || seed % 4 !== 0;
+      competencias.push({
+        competencia: comp,
+        status: transmitida ? "TRANSMITIDA" : "PENDENTE",
+        prazo: `${competenciaAnterior(i - 1).split("-")[1]}/${(parseInt(comp.split("-")[1]) % 12) + 1}/${comp.split("-")[0]}`,
+        data_transmissao: transmitida ? isoDataAhead(-(i * 30 + 10)) : null,
+        entradas: 120 + ((seed * (i + 1)) % 400),
+        saidas: 180 + ((seed * (i + 2)) % 500),
+        icms_devido: 4500 + ((seed * (i + 1)) % 12000),
+      });
+    }
+    return {
+      ...base,
+      dados: { competencias },
+      mensagens: [
+        `${competencias.filter((c) => c.status === "TRANSMITIDA").length} de ${competencias.length} competências transmitidas.`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_efd_contribuicoes") {
+    const competencias = [];
+    for (let i = 0; i < 6; i++) {
+      const comp = competenciaAnterior(i);
+      const transmitida = i > 0 || seed % 3 !== 0;
+      competencias.push({
+        competencia: comp,
+        status: transmitida ? "TRANSMITIDA" : "PENDENTE",
+        data_transmissao: transmitida ? isoDataAhead(-(i * 30 + 14)) : null,
+        receita_bruta: 85000 + ((seed * (i + 1)) % 200000),
+        pis_devido: 553 + ((seed * (i + 1)) % 1500),
+        cofins_devido: 2550 + ((seed * (i + 1)) % 7000),
+      });
+    }
+    return {
+      ...base,
+      dados: { competencias },
+      mensagens: [
+        `${competencias.filter((c) => c.status === "TRANSMITIDA").length} de ${competencias.length} competências transmitidas.`,
+      ],
+    };
+  }
+
+  // Default — pendências
+  const pendencias: Pendencia[] = [];
   if (seed % 6 === 0) {
     pendencias.push({
       tipo: "ECD do exercício anterior não transmitida",
