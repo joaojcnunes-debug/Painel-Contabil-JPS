@@ -281,6 +281,34 @@ export interface FolhaItem {
 }
 
 // ─── Integrações governamentais (Migration 16) ──────────────
+export type SituacaoFiscalEcac = "REGULAR" | "PENDENTE" | "INDETERMINADO";
+export type StatusSessaoEcac = "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
+
+export type PendenciaEcac = {
+  tipo: string;
+  competencia?: string;
+  valor?: number;
+  descricao?: string;
+};
+
+export interface SessaoEcac {
+  id_sessao: string;
+  id_cliente: string;
+  usuario_email: string;
+  usuario_nome: string | null;
+  iniciada_em: string;
+  finalizada_em: string | null;
+  duracao_minutos: number | null;
+  situacao_fiscal: SituacaoFiscalEcac | null;
+  mensagens_nao_lidas: number | null;
+  pendencias: PendenciaEcac[] | null;
+  proximas_acoes: string | null;
+  notas: string | null;
+  status: StatusSessaoEcac;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface NfeDfeNsu {
   id_nsu: string;
   id_cliente: string;
@@ -604,6 +632,7 @@ export interface Database {
       integracoes_logs: TableShape<IntegracaoLog>;
       certificados_digitais: TableShape<CertificadoDigital>;
       nfe_dfe_nsu: TableShape<NfeDfeNsu>;
+      sessoes_ecac: TableShape<SessaoEcac>;
     };
   };
 }

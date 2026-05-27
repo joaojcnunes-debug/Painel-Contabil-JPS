@@ -54,6 +54,7 @@ const ITEMS_INTERNO: ItemWithGuard[] = [
   { href: "/ferias", label: "Férias", icon: Plane },
   { href: "/nfe", label: "NF-e", icon: FileCode },
   { href: "/integracoes", label: "Integrações", icon: Globe2 },
+  { href: "/sessoes-ecac", label: "Sessões e-CAC", icon: ShieldCheck },
   { href: "/produtividade", label: "Produtividade", icon: TrendingUp },
   { href: "/seguranca", label: "Segurança", icon: Shield },
   { href: "/usuarios", label: "Usuários", icon: ShieldCheck, adminOnly: true },

@@ -22,6 +22,7 @@ import type {
 } from "@/lib/supabase/types";
 import { ClienteHeaderActions } from "./ClienteHeader";
 import { ContatosSection } from "@/components/contatos/ContatosSection";
+import { AbrirEcacButton } from "@/components/sessoes-ecac/AbrirEcacButton";
 
 const REGIME_LABEL: Record<string, string> = {
   SIMPLES_NACIONAL: "Simples Nacional",
@@ -184,7 +185,10 @@ export default async function ClienteDetalhe({
             )}
           </div>
         </div>
-        <ClienteHeaderActions cliente={cliente} />
+        <div className="flex items-start gap-2">
+          <AbrirEcacButton idCliente={cliente.id_cliente} variant="secondary" />
+          <ClienteHeaderActions cliente={cliente} />
+        </div>
       </div>
 
       {/* Stats */}
