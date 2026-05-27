@@ -119,10 +119,12 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "NFS-e por município, ISS, CND Municipal. Endpoints diferentes por prefeitura.",
     cor: "from-rose-50 to-white border-rose-200",
+    slug: "prefeituras",
     acoes: [
-      { id: "consultar_nfse", label: "Consultar NFS-e emitidas" },
-      { id: "consultar_iss", label: "Consultar ISS devido" },
+      { id: "consultar_nfse_emitidas", label: "NFS-e emitidas" },
+      { id: "consultar_iss", label: "ISS devido por competência" },
       { id: "consultar_cnd_municipal", label: "Emitir CND municipal" },
+      { id: "listar_municipios_configurados", label: "Municípios configurados" },
     ],
   },
   {
@@ -132,6 +134,7 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "Abertura, alteração, baixa, DBE, viabilidade e protocolos.",
     cor: "from-indigo-50 to-white border-indigo-200",
+    slug: "redesim",
     acoes: [
       { id: "consultar_protocolos", label: "Consultar protocolos abertos" },
       { id: "consultar_viabilidade", label: "Consultar viabilidade" },
@@ -145,8 +148,8 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "A1/A3, procurações e-CAC, validade, alertas de expiração.",
     cor: "from-gray-50 to-white border-gray-300",
+    slug: "certificado-digital",
     acoes: [
-      { id: "listar_certificados", label: "Listar certificados cadastrados" },
       { id: "checar_vencimentos", label: "Checar próximos vencimentos" },
     ],
   },

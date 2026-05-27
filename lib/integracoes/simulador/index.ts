@@ -1136,8 +1136,117 @@ function fgtsMock(
 function prefMock(
   base: RespostaIntegracao,
   seed: number,
-  _acao: string
+  acao: string
 ): RespostaIntegracao {
+  const municipios = [
+    "São Paulo - SP",
+    "Rio de Janeiro - RJ",
+    "Belo Horizonte - MG",
+    "Curitiba - PR",
+    "Porto Alegre - RS",
+  ];
+  const municipioPadrao = municipios[seed % municipios.length];
+
+  if (acao === "consultar_nfse_emitidas") {
+    const emitidas = [];
+    for (let i = 0; i < 5; i++) {
+      emitidas.push({
+        numero: `${10000 + ((seed + i) % 90000)}`,
+        codigo_verificacao: `${(seed % 9000) + 1000}-${(seed * (i + 1)) % 9000 + 1000}`,
+        tomador: `Cliente PJ ${i + 1} LTDA`,
+        cnpj_tomador: `${20 + i}.${seed % 900}.${seed % 900}/0001-${(seed * (i + 1)) % 100}`,
+        servico: "Serviços contábeis",
+        data_emissao: isoDataAhead(-(i * 5 + 2)),
+        valor_servico: 1500 + ((seed * (i + 1) * 13) % 5500),
+        valor_iss: 75 + ((seed * (i + 1)) % 275),
+        aliquota: 5,
+      });
+    }
+    return {
+      ...base,
+      dados: { emitidas, municipio: municipioPadrao },
+      mensagens: [
+        `${emitidas.length} NFS-e emitidas no município ${municipioPadrao} (simulado).`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_iss") {
+    const competencias = [];
+    for (let i = 0; i < 6; i++) {
+      const comp = competenciaAnterior(i);
+      const valor = 250 + ((seed * (i + 1) * 19) % 2500);
+      competencias.push({
+        competencia: comp,
+        valor_iss: valor,
+        status: i === 0 ? "EM_ABERTO" : i === 1 && seed % 5 === 0 ? "VENCIDO" : "PAGO",
+        vencimento: isoDataAhead(15 - i * 30),
+        data_pagamento:
+          i > 0 && !(i === 1 && seed % 5 === 0)
+            ? isoDataAhead(-(i * 30 - 5))
+            : null,
+      });
+    }
+    const total = competencias.reduce(
+      (s, c) => s + (c.status !== "PAGO" ? c.valor_iss : 0),
+      0
+    );
+    return {
+      ...base,
+      dados: { competencias, total_em_aberto: total, municipio: municipioPadrao },
+      mensagens: [
+        total > 0
+          ? `Total em aberto: R$ ${total.toLocaleString("pt-BR")}`
+          : "Sem ISS em aberto.",
+      ],
+    };
+  }
+
+  if (acao === "consultar_cnd_municipal") {
+    const regular = seed % 5 !== 0;
+    return {
+      ...base,
+      certidoes: [
+        {
+          tipo: "CND Municipal",
+          situacao: regular ? "REGULAR" : "POSITIVA_COM_EFEITOS",
+          emissao: new Date().toISOString().slice(0, 10),
+          validade: regular ? isoDataAhead(180) : undefined,
+        },
+      ],
+      dados: {
+        municipio: municipioPadrao,
+        codigo_validacao: regular
+          ? `${(seed % 9000) + 1000}.${(seed % 9000) + 1000}`
+          : null,
+      },
+      mensagens: [
+        regular
+          ? `CND Municipal de ${municipioPadrao} emitida (válida 180 dias).`
+          : `Pendências no município ${municipioPadrao}. CND não emitida.`,
+      ],
+    };
+  }
+
+  if (acao === "listar_municipios_configurados") {
+    return {
+      ...base,
+      dados: {
+        municipios: municipios.slice(0, 3).map((m, i) => ({
+          nome: m,
+          codigo_ibge: `${3550000 + i}`,
+          endpoint_nfse: `https://nfse.${m.split(" -")[0].toLowerCase().replace(/\s/g, "")}.gov.br/ws`,
+          configurado: i < 2,
+          ultima_consulta: i < 2 ? isoDataAhead(-(i + 1) * 7) : null,
+        })),
+      },
+      mensagens: [
+        "2 de 3 municípios configurados. APIs variam — cada município tem leiaute próprio (Abrasf padrão).",
+      ],
+    };
+  }
+
+  // Default
   return {
     ...base,
     mensagens: [
@@ -1153,9 +1262,84 @@ function prefMock(
 
 function redesimMock(
   base: RespostaIntegracao,
-  _seed: number,
-  _acao: string
+  seed: number,
+  acao: string
 ): RespostaIntegracao {
+  if (acao === "consultar_protocolos") {
+    const protocolos: Array<Record<string, unknown>> = [];
+    if (seed % 4 === 0) {
+      protocolos.push({
+        numero: `${(seed % 9000) + 1000}.${(seed % 9000) + 1000}/${new Date().getFullYear()}`,
+        tipo: "Alteração contratual",
+        orgao: "Junta Comercial Estadual",
+        data_protocolo: isoDataAhead(-15),
+        status: "EM_ANALISE",
+        prazo_estimado: isoDataAhead(8),
+        proxima_etapa: "Análise jurídica",
+      });
+    }
+    if (seed % 7 === 0) {
+      protocolos.push({
+        numero: `${(seed % 9000) + 5000}.${(seed % 9000) + 1000}/${new Date().getFullYear()}`,
+        tipo: "Atualização CCM Municipal",
+        orgao: "Prefeitura Municipal",
+        data_protocolo: isoDataAhead(-5),
+        status: "AGUARDANDO_DOCUMENTOS",
+        prazo_estimado: isoDataAhead(2),
+        proxima_etapa: "Anexar comprovante de endereço",
+      });
+    }
+    return {
+      ...base,
+      dados: { protocolos },
+      mensagens: [
+        protocolos.length === 0
+          ? "Nenhum protocolo em aberto."
+          : `${protocolos.length} protocolo(s) em andamento.`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_viabilidade") {
+    const aprovada = seed % 3 !== 0;
+    return {
+      ...base,
+      dados: {
+        numero_pedido: `VIA${(seed % 9000) + 1000}${(seed % 9000) + 1000}`,
+        situacao: aprovada ? "APROVADA" : "EM_ANALISE",
+        atividades_consultadas: [
+          { cnae: "6920-6/01", descricao: "Atividades de contabilidade" },
+          { cnae: "7020-4/00", descricao: "Consultoria em gestão empresarial" },
+        ],
+        endereco_consultado: "Rua Exemplo, 123 — Centro",
+        zoneamento_ok: aprovada,
+        observacoes: aprovada
+          ? "Endereço apto para o(s) CNAE(s) selecionado(s)."
+          : "Aguardando manifestação do município sobre zoneamento.",
+      },
+      mensagens: [
+        aprovada
+          ? "Viabilidade APROVADA — proceder com DBE."
+          : "Viabilidade em análise pelo município.",
+      ],
+    };
+  }
+
+  if (acao === "gerar_dbe") {
+    return {
+      ...base,
+      dados: {
+        numero_dbe: `DBE${new Date().getFullYear()}${(seed % 90000) + 10000}`,
+        situacao: "GERADO",
+        data_emissao: new Date().toISOString().slice(0, 10),
+        validade: isoDataAhead(180),
+        proximo_passo: "Imprimir, assinar e protocolar na Junta Comercial",
+      },
+      mensagens: ["DBE gerado. Próximo passo: protocolar na Junta."],
+    };
+  }
+
+  // Default
   return {
     ...base,
     mensagens: ["Nenhum protocolo em aberto (simulado)."],
