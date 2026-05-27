@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -13,8 +14,17 @@ import {
   History,
   Loader2,
   Play,
+  ShieldCheck,
   Truck,
 } from "lucide-react";
+
+const DFeDistribuirModal = dynamic(
+  () =>
+    import("@/components/integracoes/DFeDistribuirModal").then((m) => ({
+      default: m.DFeDistribuirModal,
+    })),
+  { ssr: false }
+);
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -56,6 +66,7 @@ export default function NotasFiscaisPage() {
 
   const [idCliente, setIdCliente] = useState("");
   const [aba, setAba] = useState<Aba>("baixar");
+  const [dfeRealOpen, setDfeRealOpen] = useState(false);
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
 
@@ -194,6 +205,18 @@ export default function NotasFiscaisPage() {
         subtitle="Baixa de XMLs da SEFAZ, manifestação do destinatário, NFC-e/CT-e/MDF-e"
         actions={
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (!idCliente) {
+                  toast.error("Selecione a empresa primeiro");
+                  return;
+                }
+                setDfeRealOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-verde-primary text-white rounded-lg text-xs font-medium hover:bg-verde-accent"
+            >
+              <ShieldCheck size={14} /> Baixar SEFAZ (REAL)
+            </button>
             <Link
               href="/nfe"
               className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
@@ -353,6 +376,13 @@ export default function NotasFiscaisPage() {
           )}
         </>
       )}
+
+      <DFeDistribuirModal
+        open={dfeRealOpen}
+        onClose={() => setDfeRealOpen(false)}
+        idCliente={idCliente}
+        nomeCliente={clienteSel?.razao_social}
+      />
     </div>
   );
 }

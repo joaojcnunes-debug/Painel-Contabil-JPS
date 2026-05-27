@@ -281,6 +281,19 @@ export interface FolhaItem {
 }
 
 // ─── Integrações governamentais (Migration 16) ──────────────
+export interface NfeDfeNsu {
+  id_nsu: string;
+  id_cliente: string;
+  ambiente: 1 | 2;                  // 1=Produção, 2=Homologação
+  ultimo_nsu: string;
+  max_nsu: string | null;
+  ultima_consulta: string | null;
+  ultimo_status: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export type ModuloIntegracao =
   | "RECEITA_FEDERAL"
   | "ESOCIAL"
@@ -590,6 +603,7 @@ export interface Database {
       integracoes_config: TableShape<IntegracaoConfig>;
       integracoes_logs: TableShape<IntegracaoLog>;
       certificados_digitais: TableShape<CertificadoDigital>;
+      nfe_dfe_nsu: TableShape<NfeDfeNsu>;
     };
   };
 }
