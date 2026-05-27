@@ -280,6 +280,44 @@ export interface FolhaItem {
   observacoes: string | null;
 }
 
+export type StatusFerias = "PROGRAMADA" | "EM_GOZO" | "PAGA" | "ENCERRADA";
+
+export interface Ferias {
+  id_ferias: string;
+  id_funcionario: string;
+  id_cliente: string;
+  periodo_aquisitivo_inicio: string;
+  periodo_aquisitivo_fim: string;
+  faltas_periodo: number;
+  dias_direito: number;
+  data_inicio_gozo: string;
+  data_fim_gozo: string;
+  dias_gozados: number;
+  dias_abono: number;
+  nome_func: string;
+  cargo_func: string | null;
+  cpf_func: string | null;
+  salario_base: number;
+  media_variaveis: number;
+  valor_ferias: number;
+  terco_ferias: number;
+  valor_abono: number;
+  terco_abono: number;
+  base_inss: number;
+  inss: number;
+  base_irrf: number;
+  irrf: number;
+  outros_descontos: number;
+  total_bruto: number;
+  liquido: number;
+  fgts: number;
+  data_pagamento: string | null;
+  status: StatusFerias;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export type TipoNFe = "ENTRADA" | "SAIDA";
 export type StatusNFe = "IMPORTADA" | "PROCESSADA" | "CANCELADA";
 
@@ -471,6 +509,7 @@ export interface Database {
       pro_labore_pagamentos: TableShape<ProLaborePagamento>;
       decimos_terceiros: TableShape<DecimoTerceiro>;
       notas_fiscais: TableShape<NotaFiscal>;
+      ferias: TableShape<Ferias>;
     };
   };
 }
