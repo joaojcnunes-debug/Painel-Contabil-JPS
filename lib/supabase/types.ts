@@ -280,6 +280,41 @@ export interface FolhaItem {
   observacoes: string | null;
 }
 
+export type StatusDecimo =
+  | "PENDENTE"
+  | "PRIMEIRA_PAGA"
+  | "SEGUNDA_PAGA"
+  | "QUITADO";
+
+export interface DecimoTerceiro {
+  id_decimo: string;
+  id_funcionario: string;
+  id_cliente: string;
+  ano: number;
+  nome_func: string;
+  cargo_func: string | null;
+  cpf_func: string | null;
+  salario_base: number;
+  media_variaveis: number;
+  meses_trabalhados: number;
+  valor_integral: number;
+  valor_primeira: number;
+  data_primeira: string | null;
+  base_inss: number;
+  inss: number;
+  base_irrf: number;
+  irrf: number;
+  outros_descontos: number;
+  valor_segunda: number;
+  data_segunda: string | null;
+  liquido_total: number;
+  fgts: number;
+  status: StatusDecimo;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export type StatusSocio = "ATIVO" | "INATIVO";
 
 export interface Socio {
@@ -400,6 +435,7 @@ export interface Database {
       folha_itens: TableShape<FolhaItem>;
       socios: TableShape<Socio>;
       pro_labore_pagamentos: TableShape<ProLaborePagamento>;
+      decimos_terceiros: TableShape<DecimoTerceiro>;
     };
   };
 }
