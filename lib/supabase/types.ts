@@ -280,6 +280,40 @@ export interface FolhaItem {
   observacoes: string | null;
 }
 
+export type TipoNFe = "ENTRADA" | "SAIDA";
+export type StatusNFe = "IMPORTADA" | "PROCESSADA" | "CANCELADA";
+
+export interface NotaFiscal {
+  id_nota: string;
+  chave: string;
+  id_cliente: string;
+  numero: string | null;
+  serie: string | null;
+  data_emissao: string | null;
+  natureza_operacao: string | null;
+  tipo: TipoNFe;
+  emit_cnpj: string | null;
+  emit_nome: string | null;
+  emit_uf: string | null;
+  dest_cnpj: string | null;
+  dest_nome: string | null;
+  valor_produtos: number;
+  valor_desconto: number;
+  valor_frete: number;
+  valor_icms: number;
+  valor_ipi: number;
+  valor_pis: number;
+  valor_cofins: number;
+  valor_total: number;
+  itens: unknown;
+  id_documento: string | null;
+  id_lancamento: string | null;
+  status: StatusNFe;
+  observacoes: string | null;
+  imported_by: string | null;
+  created_at: string;
+}
+
 export type StatusDecimo =
   | "PENDENTE"
   | "PRIMEIRA_PAGA"
@@ -436,6 +470,7 @@ export interface Database {
       socios: TableShape<Socio>;
       pro_labore_pagamentos: TableShape<ProLaborePagamento>;
       decimos_terceiros: TableShape<DecimoTerceiro>;
+      notas_fiscais: TableShape<NotaFiscal>;
     };
   };
 }

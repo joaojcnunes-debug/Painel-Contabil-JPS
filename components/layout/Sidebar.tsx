@@ -23,6 +23,7 @@ import {
   Users2,
   Briefcase,
   Gift,
+  FileCode,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ const ITEMS_INTERNO: ItemWithGuard[] = [
   { href: "/folha", label: "Folha", icon: Users2 },
   { href: "/pro-labore", label: "Pró-labore", icon: Briefcase },
   { href: "/decimo-terceiro", label: "13º salário", icon: Gift },
+  { href: "/nfe", label: "NF-e", icon: FileCode },
   { href: "/produtividade", label: "Produtividade", icon: TrendingUp },
   { href: "/seguranca", label: "Segurança", icon: Shield },
   { href: "/usuarios", label: "Usuários", icon: ShieldCheck, adminOnly: true },
