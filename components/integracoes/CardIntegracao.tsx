@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { History, Play, Settings } from "lucide-react";
+import { ExternalLink, History, Play, Settings } from "lucide-react";
 import type { ModuloMeta } from "@/lib/integracoes/core/types";
 import type { IntegracaoConfig } from "@/lib/supabase/types";
 import { BadgeModo, BadgeStatus } from "./BadgeStatus";
@@ -40,9 +40,19 @@ export function CardIntegracao({
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
-          <div className="font-serif text-base font-bold text-verde-dark leading-tight">
-            {meta.nome}
-          </div>
+          {meta.slug ? (
+            <Link
+              href={`/integracoes/${meta.slug}`}
+              className="font-serif text-base font-bold text-verde-dark leading-tight inline-flex items-center gap-1.5 hover:underline"
+            >
+              {meta.nome}
+              <ExternalLink size={11} className="text-gold" />
+            </Link>
+          ) : (
+            <div className="font-serif text-base font-bold text-verde-dark leading-tight">
+              {meta.nome}
+            </div>
+          )}
           <div className="text-[11px] text-gray-500 mt-0.5">
             {meta.descricao}
           </div>

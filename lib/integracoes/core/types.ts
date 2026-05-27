@@ -45,5 +45,6 @@ export type ModuloMeta = {
   curto: string;                         // "RF/e-CAC"
   descricao: string;
   cor: string;                           // classes Tailwind do card
+  slug?: string;                         // se houver tela dedicada (/integracoes/<slug>)
   acoes: Array<{ id: string; label: string; descricao?: string }>;
 };

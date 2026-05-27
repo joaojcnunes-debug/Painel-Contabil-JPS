@@ -11,6 +11,7 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "Consulta de pendências, situação fiscal, débitos, DCTFWeb, PER/DCOMP, caixa postal, DARF e certidões.",
     cor: "from-blue-50 to-white border-blue-200",
+    slug: "receita-federal",
     acoes: [
       { id: "consultar_situacao_fiscal", label: "Consultar situação fiscal" },
       { id: "consultar_pendencias", label: "Listar pendências" },

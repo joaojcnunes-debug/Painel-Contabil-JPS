@@ -5,7 +5,7 @@
 // de UI. Cobre os 10 módulos com pendências realistas.
 
 import type { ModuloIntegracao } from "@/lib/supabase/types";
-import type { Certidao, Pendencia, RespostaIntegracao } from "../core/types";
+import type { Pendencia, RespostaIntegracao } from "../core/types";
 import { delaySimulado } from "../core/modo";
 
 type ExecParams = {
@@ -96,6 +96,7 @@ function rfMock(
   seed: number,
   acao: string
 ): RespostaIntegracao {
+  // Pendências base — usadas em "pendencias" e "situação fiscal"
   const pendencias: Pendencia[] = [];
   if (seed % 3 === 0) {
     pendencias.push({
@@ -112,26 +113,130 @@ function rfMock(
       vencimento: isoDataAhead(15),
     });
   }
-  const certidoes: Certidao[] =
-    acao === "emitir_certidao"
-      ? [
-          {
-            tipo: pendencias.length > 0 ? "CPEN" : "CND",
-            situacao: pendencias.length > 0 ? "POSITIVA_COM_EFEITOS" : "REGULAR",
-            emissao: new Date().toISOString().slice(0, 10),
-            validade: isoDataAhead(180),
-          },
-        ]
-      : [];
+  if (seed % 11 === 0) {
+    pendencias.push({
+      tipo: "Compensação pendente",
+      descricao: "PER/DCOMP nº 1234.5678.9012 aguardando análise",
+    });
+  }
+
+  const situacaoFiscal = pendencias.length === 0 ? "REGULAR" : "PENDENTE";
+
+  if (acao === "emitir_certidao") {
+    return {
+      ...base,
+      certidoes: [
+        {
+          tipo: situacaoFiscal === "REGULAR" ? "CND" : "CPEN",
+          situacao:
+            situacaoFiscal === "REGULAR" ? "REGULAR" : "POSITIVA_COM_EFEITOS",
+          emissao: new Date().toISOString().slice(0, 10),
+          validade: isoDataAhead(180),
+        },
+      ],
+      dados: {
+        codigo_controle: `${(seed % 9000) + 1000}.${(seed % 9000) + 1000}.${(seed % 9000) + 1000}.${(seed % 9000) + 1000}`,
+      },
+      mensagens: [
+        situacaoFiscal === "REGULAR"
+          ? "Certidão NEGATIVA de débitos emitida (válida 180 dias)."
+          : "Certidão POSITIVA COM EFEITOS DE NEGATIVA emitida.",
+      ],
+    };
+  }
+
+  if (acao === "consultar_dctfweb") {
+    // Últimas 6 competências
+    const declaracoes = [];
+    for (let i = 0; i < 6; i++) {
+      const comp = competenciaAnterior(i);
+      const status =
+        i === 1 && seed % 3 === 0
+          ? "PENDENTE"
+          : i === 0
+          ? "EM_EDICAO"
+          : "TRANSMITIDA";
+      declaracoes.push({
+        competencia: comp,
+        status,
+        valor: 4500 + ((seed * (i + 1)) % 8000),
+        data_transmissao:
+          status === "TRANSMITIDA" ? isoDataAhead(-(i * 30 + 5)) : null,
+        recibo:
+          status === "TRANSMITIDA"
+            ? `1.21.${comp.replace("-", ".")}.${(seed % 9000) + 1000}`
+            : null,
+      });
+    }
+    return {
+      ...base,
+      dados: { declaracoes },
+      mensagens: [`${declaracoes.length} competências analisadas.`],
+    };
+  }
+
+  if (acao === "consultar_caixa_postal") {
+    const naoLidas = seed % 4;
+    const mensagens = [
+      {
+        data: isoDataAhead(-2),
+        assunto: "Confirmação de transmissão DCTFWeb",
+        remetente: "Receita Federal",
+        lida: true,
+      },
+      {
+        data: isoDataAhead(-7),
+        assunto: "Aviso de débito vencendo",
+        remetente: "PGFN",
+        lida: naoLidas < 2,
+      },
+      {
+        data: isoDataAhead(-15),
+        assunto: "Demonstrativo de parcelamento",
+        remetente: "Receita Federal",
+        lida: naoLidas < 3,
+      },
+    ];
+    return {
+      ...base,
+      dados: { mensagens, nao_lidas: mensagens.filter((m) => !m.lida).length },
+      mensagens:
+        naoLidas > 0
+          ? [`${naoLidas} mensagem(ns) não lida(s) na caixa postal e-CAC.`]
+          : ["Nenhuma mensagem nova."],
+    };
+  }
+
+  if (acao === "consultar_situacao_fiscal") {
+    return {
+      ...base,
+      pendencias,
+      dados: {
+        situacao_fiscal: situacaoFiscal,
+        cnpj_situacao: "ATIVA",
+        motivos_pendencia:
+          pendencias.length > 0
+            ? pendencias.map((p) => p.tipo)
+            : [],
+        ultima_consulta: new Date().toISOString(),
+      },
+      mensagens:
+        situacaoFiscal === "REGULAR"
+          ? ["Sem pendências. Apta a obter CND."]
+          : [`${pendencias.length} pendência(s) encontrada(s).`],
+    };
+  }
+
+  // Default: consultar_pendencias
   return {
     ...base,
     pendencias,
-    certidoes,
-    mensagens: pendencias.length === 0 ? ["Nenhuma pendência encontrada."] : [],
     dados: {
-      situacao_fiscal: pendencias.length === 0 ? "REGULAR" : "PENDENTE",
+      situacao_fiscal: situacaoFiscal,
       caixa_postal_nao_lidas: seed % 4,
     },
+    mensagens:
+      pendencias.length === 0 ? ["Nenhuma pendência encontrada."] : [],
   };
 }
 
