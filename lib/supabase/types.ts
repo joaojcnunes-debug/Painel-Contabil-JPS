@@ -280,6 +280,51 @@ export interface FolhaItem {
   observacoes: string | null;
 }
 
+export type StatusSocio = "ATIVO" | "INATIVO";
+
+export interface Socio {
+  id_socio: string;
+  id_cliente: string;
+  nome: string;
+  cpf: string | null;
+  rg: string | null;
+  data_nascimento: string | null;
+  data_entrada: string;
+  data_saida: string | null;
+  participacao_pct: number | null;
+  pro_labore_mensal: number;
+  dependentes: number;
+  status: StatusSocio;
+  pix: string | null;
+  banco: string | null;
+  agencia: string | null;
+  conta: string | null;
+  email: string | null;
+  telefone: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ProLaborePagamento {
+  id_pagamento: string;
+  id_socio: string;
+  id_cliente: string;
+  competencia: string;
+  nome_socio: string;
+  cpf_socio: string | null;
+  valor_pro_labore: number;
+  inss: number;
+  base_irrf: number;
+  irrf: number;
+  outros_descontos: number;
+  liquido: number;
+  data_pagamento: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ApuracaoSimples {
   id_apuracao: string;
   id_cliente: string;
@@ -353,6 +398,8 @@ export interface Database {
       funcionarios: TableShape<Funcionario>;
       folhas_pagamento: TableShape<FolhaPagamento>;
       folha_itens: TableShape<FolhaItem>;
+      socios: TableShape<Socio>;
+      pro_labore_pagamentos: TableShape<ProLaborePagamento>;
     };
   };
 }

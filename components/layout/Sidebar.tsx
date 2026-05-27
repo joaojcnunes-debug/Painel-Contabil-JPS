@@ -21,6 +21,7 @@ import {
   Landmark,
   Calculator,
   Users2,
+  Briefcase,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ const ITEMS_INTERNO: ItemWithGuard[] = [
   { href: "/conciliacao", label: "Conciliação", icon: Landmark },
   { href: "/apuracao", label: "Apuração", icon: Calculator },
   { href: "/folha", label: "Folha", icon: Users2 },
+  { href: "/pro-labore", label: "Pró-labore", icon: Briefcase },
   { href: "/produtividade", label: "Produtividade", icon: TrendingUp },
   { href: "/seguranca", label: "Segurança", icon: Shield },
   { href: "/usuarios", label: "Usuários", icon: ShieldCheck, adminOnly: true },
