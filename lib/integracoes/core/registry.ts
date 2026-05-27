@@ -42,10 +42,12 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "Serviços tomados/prestados, retenções, série R-4000 e integração com DCTFWeb.",
     cor: "from-purple-50 to-white border-purple-200",
+    slug: "efd-reinf",
     acoes: [
-      { id: "gerar_r4000", label: "Gerar eventos R-4000" },
-      { id: "enviar_reinf", label: "Enviar à Receita" },
-      { id: "consultar_retencoes", label: "Listar retenções do período" },
+      { id: "listar_pendentes_r4000", label: "Listar eventos R-4000 pendentes" },
+      { id: "listar_servicos_tomados", label: "Serviços tomados (R-4020)" },
+      { id: "consultar_retencoes", label: "Retenções do período" },
+      { id: "consultar_vinculo_dctfweb", label: "Vínculo com DCTFWeb" },
     ],
   },
   {

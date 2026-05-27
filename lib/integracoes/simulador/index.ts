@@ -406,8 +406,141 @@ function esocialMock(
 function reinfMock(
   base: RespostaIntegracao,
   seed: number,
-  _acao: string
+  acao: string
 ): RespostaIntegracao {
+  if (acao === "listar_pendentes_r4000") {
+    const pendentes: Array<Record<string, unknown>> = [];
+    if (seed % 4 === 0) {
+      pendentes.push({
+        codigo: "R-4020",
+        nome: "Pagamentos a PJ",
+        competencia: competenciaAnterior(0),
+        qtd_beneficiarios: 3 + (seed % 5),
+        valor_total: 18500 + (seed % 12000),
+      });
+    }
+    if (seed % 6 === 0) {
+      pendentes.push({
+        codigo: "R-4010",
+        nome: "Pagamentos a PF",
+        competencia: competenciaAnterior(0),
+        qtd_beneficiarios: 1 + (seed % 3),
+        valor_total: 4500 + (seed % 3000),
+      });
+    }
+    if (seed % 8 === 0) {
+      pendentes.push({
+        codigo: "R-4080",
+        nome: "Retenções na fonte",
+        competencia: competenciaAnterior(0),
+        qtd_beneficiarios: 2,
+        valor_total: 850 + (seed % 600),
+      });
+    }
+    return {
+      ...base,
+      dados: { pendentes },
+      mensagens: [
+        pendentes.length === 0
+          ? "Nenhum evento R-4000 pendente."
+          : `${pendentes.length} grupo(s) de evento(s) pendente(s).`,
+      ],
+    };
+  }
+
+  if (acao === "listar_servicos_tomados" || acao === "consultar_r4020") {
+    const servicos = [];
+    for (let i = 0; i < 5; i++) {
+      const valorBase = 3000 + ((seed * (i + 1) * 23) % 25000);
+      const aliquotaIR = i % 2 === 0 ? 1.5 : 4.65;
+      servicos.push({
+        beneficiario: `Fornecedor PJ ${(i + 1).toString().padStart(2, "0")} LTDA`,
+        cnpj: `${10 + i}.${seed % 900}${seed % 900}.${seed % 900}/0001-${(seed * (i + 1)) % 100}`,
+        natureza_servico: i % 2 === 0 ? "Consultoria" : "Manutenção técnica",
+        data_pagamento: isoDataAhead(-(i * 5 + 2)),
+        valor_bruto: valorBase,
+        base_calculo: valorBase,
+        aliquota: aliquotaIR,
+        valor_ir: (valorBase * aliquotaIR) / 100,
+        pis_cofins_csll:
+          aliquotaIR === 4.65
+            ? {
+                pis: valorBase * 0.0065,
+                cofins: valorBase * 0.03,
+                csll: valorBase * 0.01,
+              }
+            : null,
+      });
+    }
+    const totalRetido = servicos.reduce(
+      (s, sv) =>
+        s +
+        sv.valor_ir +
+        (sv.pis_cofins_csll
+          ? sv.pis_cofins_csll.pis +
+            sv.pis_cofins_csll.cofins +
+            sv.pis_cofins_csll.csll
+          : 0),
+      0
+    );
+    return {
+      ...base,
+      dados: { servicos, total_retido: totalRetido },
+      mensagens: [
+        `${servicos.length} pagamento(s) a PJ com retenção no período.`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_retencoes") {
+    const totalIR = 1200 + (seed % 3500);
+    const totalPIS = 280 + (seed % 700);
+    const totalCOFINS = 1300 + (seed % 3000);
+    const totalCSLL = 450 + (seed % 900);
+    const totalINSS = 800 + (seed % 2000);
+    const total = totalIR + totalPIS + totalCOFINS + totalCSLL + totalINSS;
+    return {
+      ...base,
+      dados: {
+        retencoes: [
+          { tipo: "IRRF", valor: totalIR, codigo: "1708 / 5952" },
+          { tipo: "PIS", valor: totalPIS, codigo: "8001" },
+          { tipo: "COFINS", valor: totalCOFINS, codigo: "8002" },
+          { tipo: "CSLL", valor: totalCSLL, codigo: "8003" },
+          { tipo: "INSS retido (cessão)", valor: totalINSS, codigo: "1138" },
+        ],
+        total,
+        competencia: competenciaAnterior(0),
+      },
+      mensagens: [
+        `Total retido na competência: R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_vinculo_dctfweb") {
+    const valorDCTFWeb = 5800 + (seed % 8000);
+    const valorReinf = valorDCTFWeb + (seed % 11 === 0 ? -120 : 0);
+    const ok = valorDCTFWeb === valorReinf;
+    return {
+      ...base,
+      dados: {
+        competencia: competenciaAnterior(0),
+        valor_apurado_reinf: valorReinf,
+        valor_dctfweb: valorDCTFWeb,
+        diferenca: valorReinf - valorDCTFWeb,
+        status: ok ? "OK" : "DIVERGENTE",
+        eventos_origem: ["R-4020", "R-4010", "R-4080"],
+      },
+      mensagens: [
+        ok
+          ? "Valores EFD-Reinf compatíveis com DCTFWeb."
+          : `DIVERGÊNCIA: Reinf apurou ${formatBRLSimples(valorReinf)}, DCTFWeb mostra ${formatBRLSimples(valorDCTFWeb)}.`,
+      ],
+    };
+  }
+
+  // Default
   const pendencias: Pendencia[] = [];
   if (seed % 4 === 0) {
     pendencias.push({
@@ -425,6 +558,13 @@ function reinfMock(
       vinculo_dctfweb: "ATIVO",
     },
   };
+}
+
+function formatBRLSimples(n: number): string {
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 function spedMock(
