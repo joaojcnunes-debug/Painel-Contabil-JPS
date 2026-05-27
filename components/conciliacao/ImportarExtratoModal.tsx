@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { downloadCsv, normalizeHeader, parseCsv, toCsv } from "@/lib/csv";
+import { isOfx, parseOfx } from "@/lib/ofx";
 import { gerarId } from "@/lib/utils";
 import type { Cliente } from "@/lib/supabase/types";
 
@@ -133,6 +134,18 @@ export function ImportarExtratoModal({ open, onClose, cliente }: Props) {
     }
   }, [open]);
 
+  // Auto-preenche banco/conta se vier do OFX (e ainda não foi mexido)
+  useEffect(() => {
+    if (!texto || !isOfx(texto)) return;
+    const ext = parseOfx(texto);
+    if (ext.banco && !banco) setBanco(`Banco ${ext.banco}`);
+    if (ext.conta && !conta)
+      setConta(
+        ext.agencia ? `Ag ${ext.agencia} / ${ext.conta}` : ext.conta
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [texto]);
+
   function escolherArquivo() {
     inputRef.current?.click();
   }
@@ -149,12 +162,47 @@ export function ImportarExtratoModal({ open, onClose, cliente }: Props) {
     e.target.value = "";
   }
 
-  const linhas = useMemo<Linha[]>(() => {
-    if (!texto.trim()) return [];
+  // Detecta formato e converte ambos pro mesmo formato Linha[]
+  const { linhas, formato, ofxMeta } = useMemo<{
+    linhas: Linha[];
+    formato: "ofx" | "csv" | "vazio";
+    ofxMeta?: { banco?: string; agencia?: string; conta?: string };
+  }>(() => {
+    if (!texto.trim()) return { linhas: [], formato: "vazio" };
+
+    if (isOfx(texto)) {
+      const ext = parseOfx(texto);
+      const linhas: Linha[] = ext.transacoes.map((t, i) => ({
+        numero: i + 1,
+        dados: {
+          data_movimento: t.data,
+          descricao: t.descricao + (t.ref ? ` (ref: ${t.ref})` : ""),
+          valor: String(t.valor),
+        },
+        data: t.data,
+        valor: t.valor,
+        erros: [],
+      }));
+      return {
+        linhas,
+        formato: "ofx",
+        ofxMeta: {
+          banco: ext.banco,
+          agencia: ext.agencia,
+          conta: ext.conta,
+        },
+      };
+    }
+
     const rows = parseCsv(texto);
-    if (rows.length < 1) return [];
+    if (rows.length < 1) return { linhas: [], formato: "csv" };
     const headers = rows[0];
-    return rows.slice(1).map((vals, i) => parseLinha(headers, vals, i + 2));
+    return {
+      linhas: rows
+        .slice(1)
+        .map((vals, i) => parseLinha(headers, vals, i + 2)),
+      formato: "csv",
+    };
   }, [texto]);
 
   const validas = linhas.filter((l) => l.erros.length === 0);
@@ -257,23 +305,45 @@ export function ImportarExtratoModal({ open, onClose, cliente }: Props) {
       <div className="space-y-4">
         <div className="bg-verde-light border border-verde-border rounded-lg p-4 text-sm text-verde-dark">
           <div className="flex items-start justify-between gap-3 mb-2">
-            <strong>Formato do CSV</strong>
+            <strong>Formatos aceitos</strong>
             <button
               type="button"
               onClick={baixarTemplate}
               className="text-xs text-gold hover:text-verde-dark inline-flex items-center gap-1"
             >
-              <Download size={12} /> baixar template
+              <Download size={12} /> baixar template CSV
             </button>
           </div>
           <p className="text-xs leading-relaxed text-verde-dark/80">
-            Colunas: <code>data</code>, <code>descricao</code>, <code>valor</code>{" "}
-            (negativo = débito, positivo = crédito). Aceita também{" "}
-            <code>credito</code>+<code>debito</code> em colunas separadas. Datas{" "}
-            <code>dd/mm/yyyy</code> ou <code>yyyy-mm-dd</code>. Valores em
-            formato BR (<code>1.234,56</code>).
+            <strong>OFX</strong> (recomendado): exportação direta do internet
+            banking — detecta banco/agência/conta e transações automaticamente.{" "}
+            <strong>CSV</strong>: colunas <code>data</code>, <code>descricao</code>,{" "}
+            <code>valor</code> (negativo=débito, positivo=crédito) ou{" "}
+            <code>credito</code>+<code>debito</code> separados. Datas{" "}
+            <code>dd/mm/yyyy</code>. Valores formato BR (<code>1.234,56</code>).
           </p>
         </div>
+
+        {formato !== "vazio" && (
+          <div className="flex items-center gap-2 text-xs">
+            <span
+              className={
+                formato === "ofx"
+                  ? "px-2 py-1 rounded-full bg-verde-primary text-white font-semibold"
+                  : "px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold"
+              }
+            >
+              {formato === "ofx" ? "OFX detectado" : "CSV detectado"}
+            </span>
+            {formato === "ofx" && ofxMeta && (
+              <span className="text-gray-500">
+                {ofxMeta.banco && `Banco ${ofxMeta.banco}`}
+                {ofxMeta.agencia && ` • Ag ${ofxMeta.agencia}`}
+                {ofxMeta.conta && ` • Conta ${ofxMeta.conta}`}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Banco (default se CSV não tiver)">
@@ -307,7 +377,7 @@ export function ImportarExtratoModal({ open, onClose, cliente }: Props) {
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.ofx,text/csv,application/x-ofx"
             onChange={onArquivo}
             className="hidden"
           />
