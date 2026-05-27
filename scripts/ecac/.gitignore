@@ -1,0 +1,5 @@
+# Não comitar perfil de browser (tem cookies/sessão do e-CAC)
+browser-profile/
+
+# Não comitar resultados raspados (dados sensíveis da empresa)
+output/

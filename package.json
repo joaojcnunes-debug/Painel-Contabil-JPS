@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start -p 3003",
     "lint": "eslint",
-    "sb": "supabase"
+    "sb": "supabase",
+    "ecac:sync": "node scripts/ecac/sync-ecac.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
@@ -35,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.15",
+    "playwright": "^1.60.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
