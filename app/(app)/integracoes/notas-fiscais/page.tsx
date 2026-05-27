@@ -25,6 +25,14 @@ const DFeDistribuirModal = dynamic(
     })),
   { ssr: false }
 );
+
+const SefazStatusModal = dynamic(
+  () =>
+    import("@/components/integracoes/SefazStatusModal").then((m) => ({
+      default: m.SefazStatusModal,
+    })),
+  { ssr: false }
+);
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -67,6 +75,7 @@ export default function NotasFiscaisPage() {
   const [idCliente, setIdCliente] = useState("");
   const [aba, setAba] = useState<Aba>("baixar");
   const [dfeRealOpen, setDfeRealOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
 
@@ -205,6 +214,19 @@ export default function NotasFiscaisPage() {
         subtitle="Baixa de XMLs da SEFAZ, manifestação do destinatário, NFC-e/CT-e/MDF-e"
         actions={
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (!idCliente) {
+                  toast.error("Selecione a empresa primeiro");
+                  return;
+                }
+                setStatusOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
+              title="Verificar se SEFAZ está no ar"
+            >
+              <ShieldCheck size={14} /> Status SEFAZ
+            </button>
             <button
               onClick={() => {
                 if (!idCliente) {
@@ -380,6 +402,13 @@ export default function NotasFiscaisPage() {
       <DFeDistribuirModal
         open={dfeRealOpen}
         onClose={() => setDfeRealOpen(false)}
+        idCliente={idCliente}
+        nomeCliente={clienteSel?.razao_social}
+      />
+
+      <SefazStatusModal
+        open={statusOpen}
+        onClose={() => setStatusOpen(false)}
         idCliente={idCliente}
         nomeCliente={clienteSel?.razao_social}
       />

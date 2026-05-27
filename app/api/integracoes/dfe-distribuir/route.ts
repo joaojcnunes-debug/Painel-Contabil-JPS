@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
 import {
+  cUfDeEstado,
   distribuirDFe,
   type AmbienteSefaz,
 } from "@/lib/integracoes/notas-fiscais/sefaz-dfe";
@@ -84,11 +85,16 @@ export async function POST(req: NextRequest) {
   // Cliente + CNPJ
   const { data: clienteData } = await supabase
     .from("clientes")
-    .select("cnpj, cpf, razao_social")
+    .select("cnpj, cpf, razao_social, estado")
     .eq("id_cliente", id_cliente)
     .single();
   const cliente = clienteData as
-    | { cnpj?: string | null; cpf?: string | null; razao_social?: string }
+    | {
+        cnpj?: string | null;
+        cpf?: string | null;
+        razao_social?: string;
+        estado?: string | null;
+      }
     | null;
   if (!cliente) {
     return NextResponse.json(
@@ -173,6 +179,7 @@ export async function POST(req: NextRequest) {
     senha,
     cnpjOuCpfDestinatario: docDest,
     ambiente: amb,
+    cUFAutor: cUfDeEstado(cliente.estado),
     ultimoNsu,
   });
   const duracaoMs = Date.now() - inicio;
