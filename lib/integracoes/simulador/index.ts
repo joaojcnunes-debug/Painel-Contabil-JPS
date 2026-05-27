@@ -96,6 +96,21 @@ function rfMock(
   seed: number,
   acao: string
 ): RespostaIntegracao {
+  // BrasilAPI em modo SIMULADO: mensagem sugerindo trocar pra REAL
+  if (acao === "consultar_cnpj_brasilapi") {
+    return {
+      ...base,
+      mensagens: [
+        "Esta ação tem implementação REAL gratuita disponível.",
+        "Mude o modo deste módulo para REAL pra consultar dados verdadeiros da Receita via BrasilAPI.",
+      ],
+      dados: {
+        info:
+          "Modo SIMULADO ativo. Em modo REAL, esta consulta traria razão social, situação cadastral, CNAEs, sócios, endereço e regime tributário diretamente da Receita Federal.",
+      },
+    };
+  }
+
   // Pendências base — usadas em "pendencias" e "situação fiscal"
   const pendencias: Pendencia[] = [];
   if (seed % 3 === 0) {

@@ -13,6 +13,11 @@ export const MODULOS: ModuloMeta[] = [
     cor: "from-blue-50 to-white border-blue-200",
     slug: "receita-federal",
     acoes: [
+      {
+        id: "consultar_cnpj_brasilapi",
+        label: "Cadastro CNPJ (BrasilAPI · REAL)",
+        descricao: "Situação cadastral, CNAEs, sócios, endereço — gratuito, sem certificado",
+      },
       { id: "consultar_situacao_fiscal", label: "Consultar situação fiscal" },
       { id: "consultar_pendencias", label: "Listar pendências" },
       { id: "consultar_dctfweb", label: "Consultar DCTFWeb" },

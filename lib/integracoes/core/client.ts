@@ -1,8 +1,9 @@
 // Orquestrador: executa uma ação de integração e registra o log.
 //
-// Roteamento: por enquanto, TODA execução vai pro simulador (modo SIMULADO).
-// Quando partirmos pra modo REAL, este arquivo terá um switch por módulo
-// que invoca a implementação real correspondente.
+// Roteamento:
+// - modo SIMULADO → simulador (dados fictícios deterministas por CNPJ)
+// - modo REAL → switch por módulo invoca conector real correspondente.
+//   Ações não implementadas em REAL caem em fallback de erro.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
@@ -12,6 +13,7 @@ import type {
 import type { RespostaIntegracao } from "./types";
 import { registrarLog } from "./logger";
 import { executarSimulado } from "../simulador";
+import { consultarCnpjBrasilApi } from "../receita-federal/real";
 
 type ExecutarParams = {
   supabase: SupabaseClient;
@@ -40,20 +42,13 @@ export async function executarIntegracao(
         params: p.params ?? {},
       });
     } else {
-      // Modo REAL — ainda não implementado por módulo.
-      // Quando ativar, plugar aqui: switch (modulo) { case ... }
-      resposta = {
+      // Modo REAL — switch por (módulo, ação)
+      resposta = await executarReal({
         modulo: p.modulo,
         acao: p.acao,
-        modo: "REAL",
-        ok: false,
-        duracaoMs: 0,
-        erro: {
-          codigo: "MODO_REAL_NAO_IMPLEMENTADO",
-          mensagem:
-            "Modo real ainda não disponível para este módulo. Use modo SIMULADO.",
-        },
-      };
+        cnpjCliente: p.cnpjCliente ?? null,
+        params: p.params ?? {},
+      });
     }
   } catch (e) {
     resposta = {
@@ -90,4 +85,44 @@ export async function executarIntegracao(
   });
 
   return resposta;
+}
+
+// ─── Roteamento modo REAL ──────────────────────────────────
+// Cada módulo plugado aqui DEVE retornar RespostaIntegracao com modo='REAL'.
+// Ações não cobertas caem em erro padronizado pra UI exibir.
+
+type ExecutarRealParams = {
+  modulo: ModuloIntegracao;
+  acao: string;
+  cnpjCliente: string | null;
+  params: Record<string, unknown>;
+};
+
+async function executarReal(
+  p: ExecutarRealParams
+): Promise<RespostaIntegracao> {
+  const naoImplementado: RespostaIntegracao = {
+    modulo: p.modulo,
+    acao: p.acao,
+    modo: "REAL",
+    ok: false,
+    duracaoMs: 0,
+    erro: {
+      codigo: "ACAO_REAL_NAO_IMPLEMENTADA",
+      mensagem: `Ação "${p.acao}" do módulo ${p.modulo} ainda não tem implementação real. Use modo SIMULADO ou aguarde a próxima versão.`,
+    },
+  };
+
+  switch (p.modulo) {
+    case "RECEITA_FEDERAL":
+      if (p.acao === "consultar_cnpj_brasilapi") {
+        return consultarCnpjBrasilApi(p.cnpjCliente);
+      }
+      return naoImplementado;
+
+    // Outros módulos ainda só em SIMULADO. Conforme implementarmos
+    // (Distribuição DFe SEFAZ, FGTS Digital WS, etc.) plugamos aqui.
+    default:
+      return naoImplementado;
+  }
 }

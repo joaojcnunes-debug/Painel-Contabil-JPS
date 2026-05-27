@@ -8,14 +8,17 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  Building2,
   CheckCircle2,
   FileText,
   History,
   Inbox,
   Loader2,
   Mail,
+  MapPin,
   Play,
   ShieldCheck,
+  Users2,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { inputClass } from "@/components/ui/Field";
@@ -33,6 +36,7 @@ import type {
 import type { RespostaIntegracao } from "@/lib/integracoes/core/types";
 
 type Aba =
+  | "cnpj"
   | "situacao"
   | "pendencias"
   | "dctfweb"
@@ -40,6 +44,7 @@ type Aba =
   | "certidao";
 
 const ACAO_POR_ABA: Record<Aba, string> = {
+  cnpj: "consultar_cnpj_brasilapi",
   situacao: "consultar_situacao_fiscal",
   pendencias: "consultar_pendencias",
   dctfweb: "consultar_dctfweb",
@@ -215,6 +220,17 @@ export default function ReceitaFederalPage() {
           {/* Tabs */}
           <div className="bg-white border border-card-border rounded-xl mb-4 flex items-center gap-1 p-1 overflow-x-auto">
             <TabBtn
+              ativo={aba === "cnpj"}
+              onClick={() => {
+                setAba("cnpj");
+                setResposta(null);
+              }}
+              icon={Building2}
+              badge="REAL"
+            >
+              Cadastro CNPJ
+            </TabBtn>
+            <TabBtn
               ativo={aba === "situacao"}
               onClick={() => {
                 setAba("situacao");
@@ -302,6 +318,9 @@ export default function ReceitaFederalPage() {
             </div>
           )}
 
+          {resposta?.ok && aba === "cnpj" && (
+            <CadastroCNPJ resposta={resposta} />
+          )}
           {resposta?.ok && aba === "situacao" && (
             <SituacaoFiscal resposta={resposta} />
           )}
@@ -330,6 +349,305 @@ export default function ReceitaFederalPage() {
 }
 
 // ─── Componentes por aba ─────────────────────────────────────
+
+type CnpjDados = {
+  cnpj?: string;
+  razao_social?: string;
+  nome_fantasia?: string | null;
+  natureza_juridica?: string;
+  porte?: string;
+  situacao_cadastral?: string;
+  data_situacao?: string;
+  data_inicio_atividade?: string;
+  optante_simples?: boolean | null;
+  data_opcao_simples?: string | null;
+  optante_mei?: boolean | null;
+  data_opcao_mei?: string | null;
+  cnae_principal?: { codigo: number; descricao: string };
+  cnaes_secundarios?: Array<{ codigo: number; descricao: string }>;
+  endereco?: {
+    logradouro?: string | null;
+    numero?: string | null;
+    complemento?: string | null;
+    bairro?: string | null;
+    municipio?: string;
+    uf?: string;
+    cep?: string | null;
+  };
+  telefone?: string | null;
+  email?: string | null;
+  capital_social?: number;
+  qsa?: Array<{
+    nome_socio: string;
+    qualificacao_socio: string;
+    data_entrada_sociedade: string;
+  }>;
+  matriz_filial?: string;
+  info?: string;
+};
+
+function CadastroCNPJ({ resposta }: { resposta: RespostaIntegracao }) {
+  const d = (resposta.dados ?? {}) as CnpjDados;
+  const simulado = resposta.modo === "SIMULADO";
+
+  // Modo SIMULADO: orientar a trocar pra REAL
+  if (simulado || !d.razao_social) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+        <div className="flex items-start gap-3">
+          <AlertTriangle size={20} className="text-amber-700 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-900">
+            <div className="font-medium mb-1">Modo simulado ativo</div>
+            <div className="text-xs mb-3">
+              {d.info ??
+                "Esta consulta tem implementação REAL gratuita disponível via BrasilAPI."}
+            </div>
+            <div className="text-xs">
+              Para consultar dados verdadeiros da Receita Federal, troque
+              o modo deste módulo de <strong>SIMULADO</strong> para{" "}
+              <strong>REAL</strong> no painel{" "}
+              <Link
+                href="/integracoes"
+                className="text-verde-primary underline"
+              >
+                /integracoes
+              </Link>
+              .
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Card identificação + situação */}
+      <div className="bg-white border border-card-border rounded-xl p-6">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-gold mb-1">
+              Receita Federal · BrasilAPI
+            </div>
+            <h3 className="font-serif text-xl font-bold text-verde-dark">
+              {d.razao_social}
+            </h3>
+            {d.nome_fantasia && (
+              <div className="text-sm text-gray-600 mt-0.5">
+                Fantasia: {d.nome_fantasia}
+              </div>
+            )}
+            <div className="text-xs font-mono text-gray-500 mt-1">
+              CNPJ {d.cnpj}
+            </div>
+          </div>
+          <SituacaoBadge situacao={d.situacao_cadastral ?? ""} />
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+          <CnpjStat label="Natureza jurídica" value={d.natureza_juridica ?? "—"} />
+          <CnpjStat label="Porte" value={d.porte ?? "—"} />
+          <CnpjStat label="Matriz/Filial" value={d.matriz_filial ?? "—"} />
+          <CnpjStat
+            label="Início atividade"
+            value={formatDate(d.data_inicio_atividade ?? null)}
+          />
+        </div>
+      </div>
+
+      {/* Regime tributário */}
+      <div className="bg-white border border-card-border rounded-xl p-4">
+        <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">
+          Regime tributário (registrado na Receita)
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {d.optante_simples ? (
+            <div className="px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+              ✓ Optante pelo Simples Nacional desde{" "}
+              {formatDate(d.data_opcao_simples ?? null)}
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs">
+              Não optante pelo Simples
+            </div>
+          )}
+          {d.optante_mei && (
+            <div className="px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+              ✓ MEI desde {formatDate(d.data_opcao_mei ?? null)}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CNAE principal + secundários */}
+      {d.cnae_principal && (
+        <div className="bg-white border border-card-border rounded-xl p-4">
+          <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">
+            Atividade econômica
+          </div>
+          <div className="border border-card-border rounded p-3 bg-app-bg/40 mb-2">
+            <div className="flex items-start gap-2">
+              <span className="text-[10px] font-mono bg-verde-primary text-white px-1.5 py-0.5 rounded">
+                Principal
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="font-mono text-xs text-gray-700">
+                  {d.cnae_principal.codigo}
+                </div>
+                <div className="text-sm text-gray-800">
+                  {d.cnae_principal.descricao}
+                </div>
+              </div>
+            </div>
+          </div>
+          {d.cnaes_secundarios && d.cnaes_secundarios.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-[10px] uppercase text-gray-500">
+                {d.cnaes_secundarios.length} CNAE(s) secundário(s)
+              </div>
+              {d.cnaes_secundarios.slice(0, 8).map((c) => (
+                <div
+                  key={c.codigo}
+                  className="text-[11px] text-gray-600 flex gap-2"
+                >
+                  <span className="font-mono text-gray-500 w-20 flex-shrink-0">
+                    {c.codigo}
+                  </span>
+                  <span className="flex-1">{c.descricao}</span>
+                </div>
+              ))}
+              {d.cnaes_secundarios.length > 8 && (
+                <div className="text-[10px] text-gray-400 italic pt-1">
+                  +{d.cnaes_secundarios.length - 8} outros
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Endereço + contato + capital */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {d.endereco && (
+          <div className="bg-white border border-card-border rounded-xl p-4 lg:col-span-2">
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin size={14} className="text-gold" />
+              <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                Endereço
+              </div>
+            </div>
+            <div className="text-sm text-gray-800">
+              {d.endereco.logradouro ?? "—"}
+              {d.endereco.numero ? `, ${d.endereco.numero}` : ""}
+              {d.endereco.complemento ? ` — ${d.endereco.complemento}` : ""}
+            </div>
+            <div className="text-xs text-gray-600 mt-0.5">
+              {d.endereco.bairro && `${d.endereco.bairro} · `}
+              {d.endereco.municipio} / {d.endereco.uf}
+              {d.endereco.cep && ` · CEP ${d.endereco.cep}`}
+            </div>
+            {(d.telefone || d.email) && (
+              <div className="text-[11px] text-gray-500 mt-2 border-t border-card-border pt-2">
+                {d.telefone && <div>Tel: {d.telefone}</div>}
+                {d.email && <div>Email: {d.email}</div>}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="bg-white border border-card-border rounded-xl p-4">
+          <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">
+            Capital social
+          </div>
+          <div className="text-xl font-bold text-verde-dark">
+            {formatBRLValue(d.capital_social ?? 0)}
+          </div>
+          <div className="text-[10px] text-gray-500 mt-2 border-t border-card-border pt-2">
+            Última atualização: {formatDate(d.data_situacao ?? null)}
+          </div>
+        </div>
+      </div>
+
+      {/* QSA — sócios */}
+      {d.qsa && d.qsa.length > 0 && (
+        <div className="bg-white border border-card-border rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-card-border bg-gray-50 flex items-center gap-2">
+            <Users2 size={14} className="text-gold" />
+            <h3 className="font-serif text-sm font-semibold text-verde-dark">
+              QSA — Quadro de Sócios ({d.qsa.length})
+            </h3>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-white text-gray-600 text-left text-xs uppercase border-b border-card-border">
+              <tr>
+                <th className="px-4 py-2">Nome do sócio</th>
+                <th className="px-4 py-2">Qualificação</th>
+                <th className="px-4 py-2">Entrada</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-card-border">
+              {d.qsa.map((s, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium text-gray-800">
+                    {s.nome_socio}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-600">
+                    {s.qualificacao_socio}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-500 whitespace-nowrap">
+                    {formatDate(s.data_entrada_sociedade)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {resposta.mensagens && resposta.mensagens.length > 0 && (
+        <div className="text-[11px] text-gray-500 space-y-0.5">
+          {resposta.mensagens.map((m, i) => (
+            <div key={i}>• {m}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SituacaoBadge({ situacao }: { situacao: string }) {
+  const s = situacao.toUpperCase();
+  const ativa = s === "ATIVA";
+  return (
+    <div
+      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 ${
+        ativa
+          ? "bg-green-100 text-green-800 border border-green-300"
+          : "bg-red-100 text-red-alert border border-red-300"
+      }`}
+    >
+      {ativa ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+      {situacao}
+    </div>
+  );
+}
+
+function CnpjStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-card-border rounded-lg p-2 bg-white">
+      <div className="text-[10px] uppercase tracking-wide text-gray-500">
+        {label}
+      </div>
+      <div className="text-sm text-gray-800 mt-0.5 truncate">{value}</div>
+    </div>
+  );
+}
+
+function formatBRLValue(n: number): string {
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
 
 function SituacaoFiscal({ resposta }: { resposta: RespostaIntegracao }) {
   const d = (resposta.dados ?? {}) as {
@@ -616,11 +934,13 @@ function TabBtn({
   ativo,
   onClick,
   icon: Icon,
+  badge,
   children,
 }: {
   ativo: boolean;
   onClick: () => void;
   icon: React.ElementType;
+  badge?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -634,6 +954,17 @@ function TabBtn({
     >
       <Icon size={13} />
       {children}
+      {badge && (
+        <span
+          className={
+            ativo
+              ? "ml-1 px-1 py-0.5 rounded text-[9px] tracking-wider bg-white/20 text-white"
+              : "ml-1 px-1 py-0.5 rounded text-[9px] tracking-wider bg-verde-dark text-white"
+          }
+        >
+          {badge}
+        </span>
+      )}
     </button>
   );
 }
