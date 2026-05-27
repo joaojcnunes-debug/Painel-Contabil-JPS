@@ -351,6 +351,7 @@ export interface CertificadoDigital {
   procuracao_outorgante: string | null;
   procuracao_outorgado: string | null;
   procuracao_servicos: string[] | null;
+  arquivo_path: string | null;       // path no bucket 'certificados-jsp'
   observacoes: string | null;
   created_at: string;
   updated_at: string | null;

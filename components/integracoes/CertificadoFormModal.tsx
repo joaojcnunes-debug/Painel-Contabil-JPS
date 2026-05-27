@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { CheckCircle2, FileLock2, Loader2, Upload } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
@@ -61,6 +62,13 @@ export function CertificadoFormModal({
   const [servicos, setServicos] = useState<string[]>([]);
   const [obs, setObs] = useState("");
 
+  // ─── Upload do .pfx ──────────────────────────────────────
+  const [pfxFile, setPfxFile] = useState<File | null>(null);
+  const [senhaPfx, setSenhaPfx] = useState("");
+  const [validando, setValidando] = useState(false);
+  const [arquivoPath, setArquivoPath] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!open) return;
     setIdCliente(certificado?.id_cliente ?? "");
@@ -74,7 +82,50 @@ export function CertificadoFormModal({
     setOutorgado(certificado?.procuracao_outorgado ?? "");
     setServicos(certificado?.procuracao_servicos ?? []);
     setObs(certificado?.observacoes ?? "");
+    setPfxFile(null);
+    setSenhaPfx("");
+    setArquivoPath(certificado?.arquivo_path ?? null);
   }, [open, certificado]);
+
+  // Valida o .pfx + senha contra a API. Preenche os campos automaticamente.
+  async function validarPfx() {
+    if (!pfxFile) {
+      toast.error("Selecione o arquivo .pfx primeiro");
+      return;
+    }
+    if (!senhaPfx) {
+      toast.error("Digite a senha do certificado");
+      return;
+    }
+    setValidando(true);
+    try {
+      const fd = new FormData();
+      fd.append("pfx", pfxFile);
+      fd.append("senha", senhaPfx);
+      const res = await fetch("/api/certificado/validar", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        toast.error(data.erro ?? "Falha ao validar certificado");
+        return;
+      }
+      // Auto-preenche os campos com os dados extraídos
+      setTitularNome(data.titular_nome);
+      setTitularDoc(data.titular_documento);
+      setEmissor(data.emissor);
+      setValidadeInicio(data.validade_inicio);
+      setValidadeFim(data.validade_fim);
+      toast.success(
+        `Certificado válido. Vence em ${data.dias_para_vencer} dias.`
+      );
+    } catch (e) {
+      toast.error(`Erro: ${(e as Error).message}`);
+    } finally {
+      setValidando(false);
+    }
+  }
 
   function toggleServico(s: string) {
     setServicos((prev) =>
@@ -90,6 +141,26 @@ export function CertificadoFormModal({
         throw new Error("Documento do titular é obrigatório");
 
       const ehProcuracao = tipo === "PROCURACAO_ECAC";
+      const ehA1 = tipo === "A1";
+      const idCert = isEdit ? certificado!.id_certificado : gerarId("CRT");
+
+      // 1) Faz upload do .pfx se houver arquivo selecionado (só A1)
+      let novoArquivoPath = arquivoPath;
+      if (ehA1 && pfxFile) {
+        const fd = new FormData();
+        fd.append("pfx", pfxFile);
+        fd.append("id_certificado", idCert);
+        const res = await fetch("/api/certificado/upload", {
+          method: "POST",
+          body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.erro ?? "Falha no upload do .pfx");
+        }
+        novoArquivoPath = data.path as string;
+      }
+
       const payload = {
         id_cliente: idCliente || null,
         tipo,
@@ -102,6 +173,7 @@ export function CertificadoFormModal({
         procuracao_outorgado: ehProcuracao ? outorgado.trim() || null : null,
         procuracao_servicos:
           ehProcuracao && servicos.length > 0 ? servicos : null,
+        arquivo_path: ehA1 ? novoArquivoPath : null,
         observacoes: obs.trim() || null,
         updated_at: new Date().toISOString(),
       };
@@ -111,12 +183,12 @@ export function CertificadoFormModal({
         const { error } = await supabase
           .from("certificados_digitais")
           .update(payload as never)
-          .eq("id_certificado", certificado!.id_certificado);
+          .eq("id_certificado", idCert);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("certificados_digitais")
-          .insert({ id_certificado: gerarId("CRT"), ...payload } as never);
+          .insert({ id_certificado: idCert, ...payload } as never);
         if (error) throw error;
       }
     },
@@ -157,10 +229,12 @@ export function CertificadoFormModal({
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="bg-amber-50 border border-amber-200 rounded p-2 text-[11px] text-amber-900">
-          Cadastro de <strong>metadata apenas</strong>. O arquivo .pfx e a
-          senha NÃO ficam no banco. Quando partir para modo real, o arquivo
-          irá pra bucket privado e a senha pra Edge Function Secret.
+        <div className="bg-blue-50 border border-blue-200 rounded p-2 text-[11px] text-blue-900">
+          Para certificados <strong>A1</strong>, faça upload do arquivo .pfx
+          e digite a senha pra <strong>validar</strong>. Os campos
+          (titular, CNPJ, emissor, validade) preenchem automaticamente. O
+          arquivo vai pra bucket privado; a <strong>senha NÃO é
+          armazenada</strong> — digitada novamente em cada uso.
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -192,6 +266,80 @@ export function CertificadoFormModal({
             </select>
           </Field>
         </div>
+
+        {tipo === "A1" && (
+          <div className="border border-card-border rounded-lg p-3 bg-app-bg/40 space-y-3">
+            <div className="flex items-center gap-2">
+              <FileLock2 size={16} className="text-gold" />
+              <div className="text-xs font-semibold text-verde-dark">
+                Arquivo .pfx (A1)
+              </div>
+              {arquivoPath && (
+                <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                  ✓ Arquivo no bucket
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Arquivo .pfx">
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pfx,.p12,application/x-pkcs12"
+                    className="hidden"
+                    onChange={(e) => setPfxFile(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 px-3 py-1.5 border border-dashed border-gray-300 rounded text-xs text-gray-700 hover:border-verde-primary truncate text-left"
+                  >
+                    {pfxFile ? (
+                      <span className="flex items-center gap-1.5">
+                        <Upload size={11} />
+                        {pfxFile.name} ({(pfxFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-gray-400">
+                        <Upload size={11} />
+                        Selecionar .pfx…
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </Field>
+              <Field label="Senha do certificado" hint="Não fica armazenada">
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={senhaPfx}
+                  onChange={(e) => setSenhaPfx(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="off"
+                />
+              </Field>
+            </div>
+
+            <button
+              type="button"
+              onClick={validarPfx}
+              disabled={validando || !pfxFile || !senhaPfx}
+              className="w-full px-3 py-2 bg-verde-primary text-white text-sm font-medium rounded hover:bg-verde-accent disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {validando ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Validando…
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={14} /> Validar e preencher campos
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Titular (nome ou razão social)" required>
