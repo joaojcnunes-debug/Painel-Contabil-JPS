@@ -483,10 +483,11 @@ function snMock(
 function fgtsMock(
   base: RespostaIntegracao,
   seed: number,
-  _acao: string
+  acao: string
 ): RespostaIntegracao {
+  const temAberto = seed % 4 === 1;
   const pendencias: Pendencia[] = [];
-  if (seed % 4 === 1) {
+  if (temAberto) {
     pendencias.push({
       tipo: "Guia FGTS em aberto",
       competencia: competenciaAnterior(0),
@@ -494,6 +495,123 @@ function fgtsMock(
       vencimento: isoDataAhead(7),
     });
   }
+
+  if (acao === "consultar_guias_fgts" || acao === "gerar_guias") {
+    const guias = [];
+    for (let i = 0; i < 6; i++) {
+      const comp = competenciaAnterior(i);
+      const valor = 580 + ((seed * (i + 1) * 13) % 2200);
+      // i=0 sempre aberta; i>=1 alternados
+      const status =
+        i === 0 && temAberto
+          ? "ABERTA"
+          : i === 1 && seed % 7 === 0
+          ? "VENCIDA"
+          : "PAGA";
+      guias.push({
+        competencia: comp,
+        valor,
+        status,
+        vencimento: isoDataAhead(7 - i * 30),
+        data_pagamento:
+          status === "PAGA" ? isoDataAhead(7 - i * 30 - 2) : null,
+        codigo_barras:
+          status !== "PAGA"
+            ? `85820000${(seed % 90000) + 10000}-0 ${(seed % 90000) + 10000}.${comp.replace("-", "")}-0`
+            : null,
+      });
+    }
+    return {
+      ...base,
+      dados: { guias },
+      mensagens: [
+        `${guias.filter((g) => g.status === "PAGA").length} paga(s), ${guias.filter((g) => g.status === "ABERTA").length} aberta(s), ${guias.filter((g) => g.status === "VENCIDA").length} vencida(s).`,
+      ],
+    };
+  }
+
+  if (acao === "consultar_debitos") {
+    const debitos: Array<Record<string, unknown>> = [];
+    if (seed % 5 === 0) {
+      debitos.push({
+        tipo: "Atraso FGTS",
+        competencia: competenciaAnterior(3),
+        valor_original: 1200 + (seed % 800),
+        juros_multa: 180 + (seed % 200),
+        valor_atualizado: 1380 + (seed % 1000),
+        dias_atraso: 92,
+      });
+    }
+    return {
+      ...base,
+      dados: {
+        debitos,
+        total_atualizado: debitos.reduce(
+          (s, d) => s + ((d.valor_atualizado as number) ?? 0),
+          0
+        ),
+      },
+      mensagens: [
+        debitos.length === 0
+          ? "Sem débitos FGTS em aberto."
+          : `${debitos.length} débito(s) totalizando R$ ${debitos.reduce((s, d) => s + ((d.valor_atualizado as number) ?? 0), 0).toLocaleString("pt-BR")}.`,
+      ],
+    };
+  }
+
+  if (acao === "conciliar_esocial") {
+    const itens = [];
+    for (let i = 0; i < 4; i++) {
+      const comp = competenciaAnterior(i);
+      const valorEsocial = 4500 + ((seed * (i + 1) * 17) % 3000);
+      const valorFGTS = valorEsocial + (seed % 7 === i ? 0 : i === 1 ? -50 : 0);
+      const ok = valorEsocial === valorFGTS;
+      itens.push({
+        competencia: comp,
+        valor_esocial: valorEsocial,
+        valor_fgts: valorFGTS,
+        diferenca: valorEsocial - valorFGTS,
+        status: ok ? "OK" : "DIVERGENTE",
+      });
+    }
+    const divergentes = itens.filter((i) => i.status === "DIVERGENTE").length;
+    return {
+      ...base,
+      dados: { itens, divergentes },
+      mensagens: [
+        divergentes === 0
+          ? "Conciliação OK em todas as competências."
+          : `${divergentes} competência(s) com divergência entre eSocial e FGTS Digital.`,
+      ],
+    };
+  }
+
+  if (acao === "emitir_crf") {
+    const regular = !temAberto && seed % 5 !== 0;
+    return {
+      ...base,
+      certidoes: [
+        {
+          tipo: "CRF",
+          situacao: regular ? "REGULAR" : "PENDENTE",
+          emissao: new Date().toISOString().slice(0, 10),
+          validade: regular ? isoDataAhead(30) : undefined,
+        },
+      ],
+      dados: {
+        codigo_validacao: regular
+          ? `${(seed % 9000) + 1000}.${(seed % 9000) + 1000}.${(seed % 9000) + 1000}`
+          : null,
+      },
+      mensagens: [
+        regular
+          ? "Certificado de Regularidade do FGTS emitido (válido 30 dias)."
+          : "Empregador NÃO está regular perante o FGTS. CRF não pode ser emitido.",
+      ],
+    };
+  }
+
+  // Default
   return {
     ...base,
     pendencias,

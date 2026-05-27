@@ -96,10 +96,13 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "Guias, débitos, integração com eventos eSocial e Conectividade Social ICP.",
     cor: "from-cyan-50 to-white border-cyan-200",
+    slug: "fgts-digital",
     acoes: [
       { id: "gerar_guias", label: "Gerar guias FGTS" },
+      { id: "consultar_guias_fgts", label: "Listar guias do período" },
       { id: "consultar_debitos", label: "Consultar débitos FGTS" },
       { id: "conciliar_esocial", label: "Conciliar com eSocial" },
+      { id: "emitir_crf", label: "Emitir CRF" },
     ],
   },
   {
