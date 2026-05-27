@@ -71,10 +71,12 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "NF-e, NFS-e, NFC-e, CT-e, MDF-e. Captura de XML, armazenamento, manifestação do destinatário.",
     cor: "from-teal-50 to-white border-teal-200",
+    slug: "notas-fiscais",
     acoes: [
-      { id: "baixar_xmls_sefaz", label: "Baixar XMLs SEFAZ (Manifestação)" },
-      { id: "consultar_nfse_municipio", label: "Consultar NFS-e do município" },
-      { id: "validar_xmls_armazenados", label: "Validar XMLs armazenados" },
+      { id: "baixar_xmls_sefaz", label: "Baixar XMLs novos da SEFAZ" },
+      { id: "listar_pendentes_manifestacao", label: "Pendentes de manifestação" },
+      { id: "consultar_historico_manifestadas", label: "Histórico de manifestações" },
+      { id: "consultar_outros_documentos", label: "NFC-e / CT-e / MDF-e" },
     ],
   },
   {

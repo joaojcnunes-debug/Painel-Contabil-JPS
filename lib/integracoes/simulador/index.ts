@@ -595,8 +595,112 @@ function spedMock(
 function notasMock(
   base: RespostaIntegracao,
   seed: number,
-  _acao: string
+  acao: string
 ): RespostaIntegracao {
+  if (acao === "baixar_xmls_sefaz") {
+    const novas = seed % 12;
+    const xmls = [];
+    for (let i = 0; i < novas; i++) {
+      xmls.push({
+        chave: `${(seed % 90 + 10)}${competenciaAnterior(0).replace("-", "")}${(seed % 900000 + 100000).toString().padStart(6, "0")}55001${((seed * (i + 1)) % 900000 + 100000).toString().padStart(9, "0")}${((seed * (i + 2)) % 100000000 + 10000000).toString().padStart(9, "0")}${(seed * (i + 3)) % 10}`,
+        emitente: `Fornecedor ${(i + 1).toString().padStart(2, "0")} LTDA`,
+        cnpj_emitente: `${10 + i}.${seed % 900}${seed % 900}.${seed % 900}/0001-${(seed * (i + 1)) % 100}`,
+        numero: `${(seed + i * 13) % 999999}`,
+        serie: "1",
+        data_emissao: isoDataAhead(-(i * 3 + 1)),
+        valor_total: 2500 + ((seed * (i + 1) * 17) % 18000),
+        natureza: i % 2 === 0 ? "Venda de mercadoria" : "Prestação de serviço",
+      });
+    }
+    return {
+      ...base,
+      dados: { xmls, total_baixadas: novas },
+      mensagens: [
+        novas === 0
+          ? "Nenhuma NF-e nova na SEFAZ."
+          : `${novas} XML(s) baixados. ${novas} aguardando manifestação.`,
+      ],
+    };
+  }
+
+  if (acao === "listar_pendentes_manifestacao") {
+    const pendentes = [];
+    const qtd = (seed % 6) + 1;
+    for (let i = 0; i < qtd; i++) {
+      const diasRestantes = 180 - (i * 30 + (seed % 60));
+      pendentes.push({
+        chave: `${(seed % 90 + 10)}${competenciaAnterior(0).replace("-", "")}${(seed % 900000 + 100000).toString().padStart(6, "0")}55001${((seed * (i + 1)) % 900000 + 100000).toString().padStart(9, "0")}${((seed * (i + 2)) % 100000000 + 10000000).toString().padStart(9, "0")}${(seed * (i + 3)) % 10}`,
+        emitente: `Fornecedor ${(i + 1).toString().padStart(2, "0")} LTDA`,
+        numero: `${(seed + i * 7) % 999999}`,
+        data_emissao: isoDataAhead(-(180 - diasRestantes)),
+        valor_total: 1500 + ((seed * (i + 1) * 19) % 15000),
+        dias_restantes: Math.max(0, diasRestantes),
+        evento_atual: null,
+      });
+    }
+    return {
+      ...base,
+      dados: { pendentes, total: qtd },
+      mensagens: [
+        `${qtd} NF-e(s) aguardando manifestação. Prazo: 180 dias da emissão.`,
+      ],
+    };
+  }
+
+  if (acao === "manifestar_nfe") {
+    return {
+      ...base,
+      dados: {
+        chave: "[NFE_KEY]",
+        evento: "210210 — Ciência da Operação",
+        protocolo: `1.21.${competenciaAnterior(0).replace("-", "")}.${(seed % 9000) + 1000}`,
+        data_manifestacao: new Date().toISOString(),
+      },
+      mensagens: ["Manifestação enviada com sucesso (simulado)."],
+    };
+  }
+
+  if (acao === "consultar_historico_manifestadas") {
+    const hist = [];
+    const eventos = [
+      { codigo: "210210", nome: "Ciência da Operação" },
+      { codigo: "210200", nome: "Confirmação da Operação" },
+      { codigo: "210220", nome: "Desconhecimento" },
+      { codigo: "210240", nome: "Operação não Realizada" },
+    ];
+    for (let i = 0; i < 6; i++) {
+      const ev = eventos[i % 4];
+      hist.push({
+        chave: `${(seed % 90 + 10)}${competenciaAnterior(i).replace("-", "")}${(seed % 900000 + 100000).toString().padStart(6, "0")}55001${((seed * (i + 1)) % 900000 + 100000).toString().padStart(9, "0")}${((seed * (i + 2)) % 100000000 + 10000000).toString().padStart(9, "0")}${(seed * (i + 3)) % 10}`,
+        emitente: `Fornecedor ${(i + 1).toString().padStart(2, "0")} LTDA`,
+        numero: `${(seed + i * 11) % 999999}`,
+        valor_total: 1800 + ((seed * (i + 1) * 11) % 12000),
+        evento_codigo: ev.codigo,
+        evento_nome: ev.nome,
+        data_manifestacao: isoDataAhead(-(i * 7 + 2)),
+        protocolo: `1.21.${competenciaAnterior(i).replace("-", "")}.${(seed * (i + 1)) % 9000 + 1000}`,
+      });
+    }
+    return {
+      ...base,
+      dados: { hist },
+      mensagens: [`${hist.length} manifestação(ões) registrada(s).`],
+    };
+  }
+
+  if (acao === "consultar_outros_documentos") {
+    return {
+      ...base,
+      dados: {
+        nfce: { emitidas: 45 + (seed % 80), valor_total: 12500 + (seed % 8000) },
+        cte: { emitidos: 8 + (seed % 15), valor_total: 15800 + (seed % 12000) },
+        mdfe: { emitidos: 4 + (seed % 8), em_aberto: seed % 3 },
+      },
+      mensagens: ["Resumo de NFC-e, CT-e e MDF-e do mês."],
+    };
+  }
+
+  // Default
   return {
     ...base,
     mensagens: [`${seed % 12} NF-e novas encontradas na SEFAZ (simulado).`],
