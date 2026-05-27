@@ -280,6 +280,82 @@ export interface FolhaItem {
   observacoes: string | null;
 }
 
+// ─── Integrações governamentais (Migration 16) ──────────────
+export type ModuloIntegracao =
+  | "RECEITA_FEDERAL"
+  | "ESOCIAL"
+  | "EFD_REINF"
+  | "SPED"
+  | "NOTAS_FISCAIS"
+  | "SIMPLES_NACIONAL"
+  | "FGTS_DIGITAL"
+  | "PREFEITURAS"
+  | "REDESIM"
+  | "CERTIFICADO_DIGITAL";
+
+export type ModoIntegracao = "SIMULADO" | "REAL";
+export type StatusIntegracao = "OK" | "ERRO" | "PENDENTE";
+export type StatusLogIntegracao = "OK" | "ERRO";
+export type TipoCertificado =
+  | "A1"
+  | "A3"
+  | "PROCURACAO_ECAC"
+  | "CONECTIVIDADE_SOCIAL"
+  | "OUTRO";
+
+export interface IntegracaoConfig {
+  id_config: string;
+  id_cliente: string | null;
+  modulo: ModuloIntegracao;
+  ativo: boolean;
+  modo: ModoIntegracao;
+  credenciais: Record<string, unknown> | null;
+  id_certificado: string | null;
+  ultima_sync: string | null;
+  proxima_sync: string | null;
+  ultimo_status: StatusIntegracao | null;
+  ultimo_retorno: Record<string, unknown> | null;
+  pendencias_count: number;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface IntegracaoLog {
+  id_log: string;
+  id_config: string | null;
+  id_cliente: string | null;
+  modulo: string;
+  acao: string;
+  modo: ModoIntegracao;
+  usuario_email: string | null;
+  usuario_nome: string | null;
+  status: StatusLogIntegracao;
+  duracao_ms: number | null;
+  request_resumo: string | null;
+  response_resumo: Record<string, unknown> | null;
+  erro_codigo: string | null;
+  erro_mensagem: string | null;
+  created_at: string;
+}
+
+export interface CertificadoDigital {
+  id_certificado: string;
+  id_cliente: string | null;
+  tipo: TipoCertificado;
+  titular_nome: string;
+  titular_documento: string;
+  emissor: string | null;
+  validade_inicio: string | null;
+  validade_fim: string | null;
+  procuracao_outorgante: string | null;
+  procuracao_outorgado: string | null;
+  procuracao_servicos: string[] | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export type StatusFerias = "PROGRAMADA" | "EM_GOZO" | "PAGA" | "ENCERRADA";
 
 export interface Ferias {
@@ -510,6 +586,9 @@ export interface Database {
       decimos_terceiros: TableShape<DecimoTerceiro>;
       notas_fiscais: TableShape<NotaFiscal>;
       ferias: TableShape<Ferias>;
+      integracoes_config: TableShape<IntegracaoConfig>;
+      integracoes_logs: TableShape<IntegracaoLog>;
+      certificados_digitais: TableShape<CertificadoDigital>;
     };
   };
 }
