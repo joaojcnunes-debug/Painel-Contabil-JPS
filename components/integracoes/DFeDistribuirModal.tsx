@@ -2,17 +2,33 @@
 
 import { useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
-import { AlertTriangle, FileCode, Loader2, Lock, Play } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileCode,
+  Loader2,
+  Lock,
+  Play,
+} from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
 import { formatBRL, formatDate } from "@/lib/utils";
+
+const EVENTOS_MANIFESTACAO = [
+  { codigo: "210210", nome: "Ciência", cor: "bg-blue-100 text-blue-700 border-blue-300" },
+  { codigo: "210200", nome: "Confirmar", cor: "bg-green-100 text-green-700 border-green-300" },
+  { codigo: "210220", nome: "Desconheço", cor: "bg-red-100 text-red-alert border-red-300" },
+  { codigo: "210240", nome: "Não realizada", cor: "bg-amber-100 text-amber-800 border-amber-300" },
+] as const;
+type CodigoEvento = "210210" | "210200" | "210220" | "210240";
 
 type DocBaixado = {
   schema: string;
   nsu: string;
   xml: string;
   // campos extraídos do XML (preenchido após parse leve)
+  chave?: string;
   numero?: string;
   serie?: string;
   emitente?: string;
@@ -38,6 +54,7 @@ type RespostaOk = {
 
 // Extrai dados básicos do XML de NF-e
 function extrairResumoNfe(xml: string): {
+  chave?: string;
   numero?: string;
   serie?: string;
   emitente?: string;
@@ -47,7 +64,14 @@ function extrairResumoNfe(xml: string): {
     const m = xml.match(new RegExp(`<${tag}>([^<]+)</${tag}>`));
     return m ? m[1] : undefined;
   };
+  // Chave: tanto resumo (resNFe/chNFe) quanto NFe completa (infNFe Id="NFe...")
+  let chave = get("chNFe");
+  if (!chave) {
+    const m = xml.match(/<infNFe[^>]+Id="NFe(\d{44})"/);
+    if (m) chave = m[1];
+  }
   return {
+    chave,
     numero: get("nNF"),
     serie: get("serie"),
     emitente: get("xNome"),
@@ -69,6 +93,10 @@ export function DFeDistribuirModal({
   const [erro, setErro] = useState<{ erro: string; cStat?: string; raw?: string } | null>(
     null
   );
+  // manifestações em andamento/concluídas por chave
+  const [manifestStatus, setManifestStatus] = useState<
+    Record<string, { loading?: boolean; ok?: boolean; msg?: string }>
+  >({});
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -112,8 +140,83 @@ export function DFeDistribuirModal({
     }
   }
 
+  async function manifestar(chave: string, tipo: CodigoEvento) {
+    if (!senha) {
+      // Pra manifestar precisa da senha novamente (foi limpa após o consultar).
+      // Pedir via prompt simples.
+      const novaSenha = window.prompt(
+        "Digite novamente a senha do certificado A1 pra assinar a manifestação:"
+      );
+      if (!novaSenha) return;
+      setSenha(novaSenha);
+      // chama recursivamente após setar — mas state é assíncrono, então passar direto
+      return manifestarComSenha(chave, tipo, novaSenha);
+    }
+    return manifestarComSenha(chave, tipo, senha);
+  }
+
+  async function manifestarComSenha(
+    chave: string,
+    tipo: CodigoEvento,
+    senhaAtual: string
+  ) {
+    let justificativa: string | undefined;
+    if (tipo === "210220" || tipo === "210240") {
+      const just = window.prompt(
+        `Justificativa pra ${tipo === "210220" ? "Desconhecimento" : "Operação não realizada"} (mín. 15 caracteres):`
+      );
+      if (!just || just.length < 15) {
+        toast.error("Justificativa obrigatória (mín 15 caracteres)");
+        return;
+      }
+      justificativa = just;
+    }
+    setManifestStatus((s) => ({ ...s, [chave]: { loading: true } }));
+    try {
+      const res = await fetch("/api/integracoes/manifestar-nfe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_cliente: idCliente,
+          ambiente,
+          senha: senhaAtual,
+          chave_nfe: chave,
+          tipo_evento: tipo,
+          justificativa,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setManifestStatus((s) => ({
+          ...s,
+          [chave]: {
+            ok: false,
+            msg: data.erro ?? `${data.cStat} ${data.xMotivo}`,
+          },
+        }));
+        toast.error(data.erro ?? "Erro");
+      } else {
+        setManifestStatus((s) => ({
+          ...s,
+          [chave]: {
+            ok: true,
+            msg: `${data.cStat} ${data.xMotivo}${data.protocolo ? ` · prot ${data.protocolo}` : ""}`,
+          },
+        }));
+        toast.success(`Manifestação registrada (${data.cStat})`);
+      }
+    } catch (e) {
+      setManifestStatus((s) => ({
+        ...s,
+        [chave]: { ok: false, msg: (e as Error).message },
+      }));
+      toast.error((e as Error).message);
+    }
+  }
+
   function fechar() {
     setSenha("");
+    setManifestStatus({});
     setResetNsu(false);
     setResposta(null);
     setErro(null);
@@ -272,39 +375,67 @@ export function DFeDistribuirModal({
                 Nenhum documento novo retornado.
               </div>
             ) : (
-              <div className="bg-white border border-card-border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600 text-left text-xs uppercase">
-                    <tr>
-                      <th className="px-3 py-2">NSU</th>
-                      <th className="px-3 py-2">Emitente</th>
-                      <th className="px-3 py-2 w-24">Nº/Série</th>
-                      <th className="px-3 py-2 text-right w-28">Valor</th>
-                      <th className="px-3 py-2 w-16">Schema</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-card-border">
-                    {resposta.documentos.map((d, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2 font-mono text-[10px] text-gray-500">
-                          {d.nsu}
-                        </td>
-                        <td className="px-3 py-2 text-xs">
-                          {d.emitente ?? "—"}
-                        </td>
-                        <td className="px-3 py-2 text-xs whitespace-nowrap">
-                          {d.numero ? `${d.numero}/${d.serie ?? "1"}` : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-right text-xs whitespace-nowrap">
+              <div className="bg-white border border-card-border rounded-lg divide-y divide-card-border">
+                {resposta.documentos.map((d, i) => {
+                  const status = d.chave ? manifestStatus[d.chave] : undefined;
+                  return (
+                    <div key={i} className="p-3">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-800 truncate">
+                            {d.emitente ?? "—"}
+                          </div>
+                          <div className="text-[11px] text-gray-500">
+                            NSU {d.nsu}{" "}
+                            {d.numero && `· NF ${d.numero}/${d.serie ?? "1"}`}
+                            {d.chave && (
+                              <span className="font-mono ml-1">
+                                · ...{d.chave.slice(-8)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold text-verde-dark whitespace-nowrap">
                           {d.valor != null ? formatBRL(d.valor) : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-[9px] font-mono text-gray-500 truncate max-w-[80px]">
-                          {d.schema.replace(".xsd", "").replace("proc", "")}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+
+                      {d.chave && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {EVENTOS_MANIFESTACAO.map((ev) => (
+                            <button
+                              key={ev.codigo}
+                              type="button"
+                              onClick={() =>
+                                manifestar(d.chave!, ev.codigo as CodigoEvento)
+                              }
+                              disabled={status?.loading}
+                              className={`text-[10px] px-2 py-1 rounded border ${ev.cor} hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed`}
+                            >
+                              {ev.nome}
+                            </button>
+                          ))}
+                          {status?.loading && (
+                            <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                              <Loader2 size={10} className="animate-spin" />
+                              Assinando + enviando…
+                            </span>
+                          )}
+                          {status && !status.loading && (
+                            <span
+                              className={`text-[10px] flex items-center gap-1 ${
+                                status.ok ? "text-green-700" : "text-red-alert"
+                              }`}
+                            >
+                              {status.ok && <CheckCircle2 size={10} />}
+                              {status.msg}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
