@@ -10,9 +10,28 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "JSP Contabilidade Personalizada",
+  title: {
+    default: "JSP Contabilidade Personalizada",
+    template: "%s • JSP",
+  },
   description:
     "Sistema da JSP Contabilidade Personalizada: clientes, obrigações, documentos e honorários.",
+  applicationName: "JSP",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "JSP",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: import("next").Viewport = {
+  themeColor: "#4A5326",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { Sidebar } from "./Sidebar";
 import { Logo } from "@/components/ui/Logo";
+import { InstallPrompt } from "./InstallPrompt";
 
 type Props = {
   variant: "interno" | "portal";
@@ -84,6 +85,8 @@ export function AppShell({ variant, children }: Props) {
           {children}
         </main>
       </div>
+
+      <InstallPrompt />
     </div>
   );
 }
