@@ -206,6 +206,80 @@ export interface LancamentoModelo {
   updated_at: string | null;
 }
 
+export type TipoFuncionario = "CLT" | "ESTAGIARIO" | "JOVEM_APRENDIZ" | "AUTONOMO";
+export type StatusFuncionario = "ATIVO" | "AFASTADO" | "DEMITIDO";
+
+export interface Funcionario {
+  id_funcionario: string;
+  id_cliente: string;
+  nome: string;
+  cpf: string | null;
+  rg: string | null;
+  data_nascimento: string | null;
+  data_admissao: string;
+  data_demissao: string | null;
+  cargo: string | null;
+  tipo: TipoFuncionario;
+  salario_base: number;
+  dependentes: number;
+  vale_transporte: boolean;
+  valor_vt: number | null;
+  valor_va: number | null;
+  plano_saude_desc: number | null;
+  status: StatusFuncionario;
+  pix: string | null;
+  banco: string | null;
+  agencia: string | null;
+  conta: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export type StatusFolha = "ABERTA" | "FECHADA";
+
+export interface FolhaPagamento {
+  id_folha: string;
+  id_cliente: string;
+  competencia: string;             // YYYY-MM
+  total_proventos: number;
+  total_descontos: number;
+  total_liquido: number;
+  total_inss_patronal: number;
+  total_fgts: number;
+  status: StatusFolha;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface FolhaItem {
+  id_item: string;
+  id_folha: string;
+  id_funcionario: string;
+  nome_func: string;
+  cargo_func: string | null;
+  salario_base: number;
+  horas_extras: number;
+  adicional_noturno: number;
+  outros_proventos: number;
+  desc_faltas: number;
+  desc_adiantamento: number;
+  desc_outros: number;
+  base_inss: number;
+  inss: number;
+  base_irrf: number;
+  irrf: number;
+  vale_transporte: number;
+  plano_saude: number;
+  total_proventos: number;
+  total_descontos: number;
+  liquido: number;
+  inss_patronal: number;
+  fgts: number;
+  observacoes: string | null;
+}
+
 export interface ApuracaoSimples {
   id_apuracao: string;
   id_cliente: string;
@@ -276,6 +350,9 @@ export interface Database {
       lancamentos_modelos: TableShape<LancamentoModelo>;
       banco_movimentos: TableShape<BancoMovimento>;
       apuracoes_simples: TableShape<ApuracaoSimples>;
+      funcionarios: TableShape<Funcionario>;
+      folhas_pagamento: TableShape<FolhaPagamento>;
+      folha_itens: TableShape<FolhaItem>;
     };
   };
 }
