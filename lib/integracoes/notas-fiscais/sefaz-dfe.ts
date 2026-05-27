@@ -27,9 +27,10 @@ const ENDPOINTS: Record<AmbienteSefaz, string> = {
   2: "https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
 };
 
-// cUF do solicitante — não precisa bater com UF da NF, é só pra rotear.
-// 91 = AN (Ambiente Nacional). Usar 91 sempre pra DFe.
-const C_UF_NACIONAL = "91";
+// cUF do solicitante — deve ser uma UF real (não 91/Nacional).
+// O envio em si vai pro endpoint Nacional, mas o cUFAutor identifica
+// o autor da consulta. SEFAZ rejeita 91 com cStat 215.
+const C_UF_DEFAULT = "33"; // RJ — TODO: tornar configurável por cliente
 
 export type DistribuirParams = {
   pfxBuffer: Buffer;
@@ -101,7 +102,7 @@ function montarDistDFeInt(
   const tipoTag = cnpjOuCpf.length === 14 ? "CNPJ" : "CPF";
   const nsuPadded = ultimoNsu.padStart(15, "0");
   // Single line, sem <?xml?>, sem whitespace entre tags
-  return `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${ambiente}</tpAmb><cUFAutor>${C_UF_NACIONAL}</cUFAutor><${tipoTag}>${cnpjOuCpf}</${tipoTag}><distNSU><ultNSU>${nsuPadded}</ultNSU></distNSU></distDFeInt>`;
+  return `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${ambiente}</tpAmb><cUFAutor>${C_UF_DEFAULT}</cUFAutor><${tipoTag}>${cnpjOuCpf}</${tipoTag}><distNSU><ultNSU>${nsuPadded}</ultNSU></distNSU></distDFeInt>`;
 }
 
 // ─── Envelope SOAP do nfeDistDFeInteresse ────────────────
