@@ -2,14 +2,17 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart3,
   CalendarCheck,
   FileText,
   Receipt,
+  Trophy,
   Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { getServerSupabase } from "@/lib/supabase/server-cache";
 import { formatBRL, formatDate } from "@/lib/utils";
+import { BarChartMensal, type BarPoint } from "@/components/ui/BarChartMensal";
 
 type ObrigRow = {
   id_obrigacao: string;
@@ -57,6 +60,14 @@ export default async function InicioPage() {
   const em7dias = isoDaqui(7);
   const inicioMes = `${hoje.slice(0, 7)}-01`;
 
+  // Últimos 6 meses pra gráfico
+  const seisMesesAtras = (() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - 5);
+    return d.toISOString().slice(0, 10);
+  })();
+
   // Tudo em paralelo — 8 queries no Promise.all (era 10 + outras nas listas)
   const [
     clientesAtivos,
@@ -69,6 +80,8 @@ export default async function InicioPage() {
     proxObrig,
     proxFat,
     docsCliente,
+    lancs6meses,
+    topClientesMes,
   ] = await Promise.all([
     supabase
       .from("clientes")
@@ -124,6 +137,17 @@ export default async function InicioPage() {
       .eq("origem", "CLIENTE")
       .order("created_at", { ascending: false })
       .limit(8),
+    // Lançamentos dos últimos 6 meses pra gráfico de evolução
+    supabase
+      .from("lancamentos")
+      .select("data_lancamento, tipo, valor")
+      .gte("data_lancamento", seisMesesAtras),
+    // Top clientes por receita no mês corrente
+    supabase
+      .from("lancamentos")
+      .select("id_cliente, valor, clientes(razao_social)")
+      .eq("tipo", "RECEITA")
+      .gte("data_lancamento", inicioMes),
   ]);
 
   const proximas = (proxObrig.data ?? []) as unknown as ObrigRow[];
@@ -136,6 +160,55 @@ export default async function InicioPage() {
   const recebidoMes = (
     (fatRecebidoMesSum.data ?? []) as unknown as Array<{ valor: number }>
   ).reduce((s, f) => s + Number(f.valor ?? 0), 0);
+
+  // ─── Evolução 6 meses ───
+  type LancMes = { data_lancamento: string; tipo: string; valor: number };
+  const lancsMes = (lancs6meses.data ?? []) as unknown as LancMes[];
+  const meses: BarPoint[] = (() => {
+    const arr: BarPoint[] = [];
+    const d = new Date();
+    d.setDate(1);
+    for (let i = 5; i >= 0; i--) {
+      const x = new Date(d);
+      x.setMonth(x.getMonth() - i);
+      const ym = `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`;
+      const label = x
+        .toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })
+        .replace(".", "")
+        .replace(" de ", "/");
+      arr.push({ label, receita: 0, despesa: 0 });
+      // Pivot
+      for (const l of lancsMes) {
+        if (l.data_lancamento.startsWith(ym)) {
+          const v = Number(l.valor);
+          if (l.tipo === "RECEITA") arr[arr.length - 1].receita += v;
+          else arr[arr.length - 1].despesa += v;
+        }
+      }
+    }
+    return arr;
+  })();
+  const temHistorico = meses.some((m) => m.receita > 0 || m.despesa > 0);
+
+  // ─── Top clientes por receita no mês ───
+  type TopRow = {
+    id_cliente: string;
+    valor: number;
+    clientes: { razao_social: string } | null;
+  };
+  const topRaw = (topClientesMes.data ?? []) as unknown as TopRow[];
+  const topMap = new Map<string, { nome: string; total: number }>();
+  for (const r of topRaw) {
+    const nome = r.clientes?.razao_social ?? "—";
+    const cur = topMap.get(r.id_cliente) ?? { nome, total: 0 };
+    cur.total += Number(r.valor);
+    topMap.set(r.id_cliente, cur);
+  }
+  const topClientes = Array.from(topMap.entries())
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+  const totalTopMes = topClientes.reduce((s, c) => s + c.total, 0);
 
   return (
     <div>
@@ -282,6 +355,89 @@ export default async function InicioPage() {
             </Link>
           ))}
         </Panel>
+      </div>
+
+      {/* Evolução 6 meses + Top clientes */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
+        <div className="xl:col-span-2 bg-white border border-card-border rounded-xl">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-card-border">
+            <h3 className="font-serif text-sm font-semibold text-verde-dark flex items-center gap-2">
+              <BarChart3 size={14} className="text-gold" />
+              Evolução financeira (últimos 6 meses)
+            </h3>
+            <Link
+              href="/lancamentos/dre"
+              className="text-xs text-gold hover:text-verde-dark flex items-center gap-1"
+            >
+              Ver DRE <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="p-4">
+            {temHistorico ? (
+              <BarChartMensal data={meses} />
+            ) : (
+              <div className="py-8 text-center text-sm text-gray-500">
+                Comece a registrar lançamentos pra ver o histórico aqui.
+                <div className="mt-2">
+                  <Link
+                    href="/lancamentos"
+                    className="text-xs text-gold hover:text-verde-dark"
+                  >
+                    Ir para lançamentos →
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white border border-card-border rounded-xl">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-card-border">
+            <h3 className="font-serif text-sm font-semibold text-verde-dark flex items-center gap-2">
+              <Trophy size={14} className="text-gold" />
+              Top clientes (mês)
+            </h3>
+            <span className="text-xs text-gray-500">{formatBRL(totalTopMes)}</span>
+          </div>
+          <div className="divide-y divide-card-border">
+            {topClientes.length === 0 && (
+              <div className="px-4 py-8 text-center text-xs text-gray-500">
+                Sem receitas no mês ainda.
+              </div>
+            )}
+            {topClientes.map((c, i) => {
+              const perc =
+                totalTopMes > 0 ? Math.round((c.total / totalTopMes) * 100) : 0;
+              return (
+                <Link
+                  key={c.id}
+                  href={`/clientes/${c.id}`}
+                  className="block px-4 py-3 hover:bg-gray-50"
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-verde-light text-verde-dark text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm text-gray-800 truncate">
+                        {c.nome}
+                      </span>
+                    </div>
+                    <span className="text-sm font-medium text-verde-dark whitespace-nowrap">
+                      {formatBRL(c.total)}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="h-full bg-verde-primary"
+                      style={{ width: `${perc}%` }}
+                    />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <Panel
