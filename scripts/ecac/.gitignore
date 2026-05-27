@@ -3,3 +3,6 @@ browser-profile/
 
 # Não comitar resultados raspados (dados sensíveis da empresa)
 output/
+
+# Não comitar .pfx temporários nem scripts PS gerados
+temp/

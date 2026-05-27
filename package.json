@@ -8,7 +8,8 @@
     "start": "next start -p 3003",
     "lint": "eslint",
     "sb": "supabase",
-    "ecac:sync": "node scripts/ecac/sync-ecac.mjs"
+    "ecac:list": "node --env-file=.env.local scripts/ecac/sync-ecac.mjs --list",
+    "ecac:sync": "node --env-file=.env.local scripts/ecac/sync-ecac.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",

@@ -1,50 +1,121 @@
-# RPA Local — e-CAC
+# RPA e-CAC com certificado A1 do cliente
 
-Script Node + Playwright que automatiza a navegação no e-CAC. Roda **localmente no seu Windows**, NÃO no Vercel.
+Script Node + Playwright pra acessar e-CAC autenticado **como o cliente** (usando o cert A1 dele cadastrado no Supabase). Roda **localmente no seu Windows**.
 
 ## Como funciona
 
-1. Abre o **Chromium em modo visível** (não-headless)
-2. Navega pro e-CAC (`https://cav.receita.fazenda.gov.br/autenticacao/login`)
-3. **Você faz login manualmente** — como preferir:
-   - Via **gov.br** (CPF+senha, certificado nuvem, banco, QR Code)
-   - Via **certificado A1** instalado no Windows (clique direto na opção)
-4. Quando detecta que entrou (URL muda pra `/ecac/`), o script automatiza:
-   - Navega pra Caixa Postal, Situação Fiscal, DCTFWeb, PerDComp
-   - Salva **screenshot, HTML e texto** de cada tela
-5. Resultados em `scripts/ecac/output/{timestamp}/`
+1. Lista clientes que têm cert A1 com arquivo no bucket
+2. Você escolhe um cliente
+3. Pede a senha do .pfx
+4. **Baixa o .pfx do bucket privado do Supabase pra `temp/`**
+5. **Importa o cert no Windows certificate store** (CurrentUser\My)
+6. Abre Chromium em modo visível
+7. Navega pro e-CAC → você clica em "Seu certificado digital"
+8. Windows pede pra escolher cert — **só tem 1 disponível** (o que acabou de importar)
+9. Loga automaticamente, sem digitar senha de novo (Windows usa o cert)
+10. Raspa Caixa Postal, Situação Fiscal, DCTFWeb, PerDComp
+11. **Cleanup:** remove cert do Windows store + apaga .pfx temp
 
-A sessão fica persistida em `scripts/ecac/browser-profile/`, então **na segunda vez você não precisa logar de novo** (até o gov.br expirar a sessão, ~30 min).
+Resultados em `output/{id_cliente}-{timestamp}/`.
 
 ## Pré-requisitos
 
-- Node.js 18+ instalado
-- Chromium baixado: `npx playwright install chromium` (já feito se você instalou as deps)
-- Certificado A1 instalado no Windows (Painel de Controle → Opções de Internet → Conteúdo → Certificados), ou conta gov.br ativa
+### 1. Variáveis de ambiente (`.env.local` do projeto)
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://mwmltqaanfxjkoztgcby.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJI...
+```
+
+**Como pegar a SERVICE_ROLE_KEY:**
+- Dashboard Supabase → Settings → API → `service_role` (Show)
+- ⚠️ Essa key tem **acesso total ao banco**. NUNCA comite no Git. Já está no `.gitignore`.
+
+### 2. Node 20+ (pra suportar `--env-file`)
+
+Verifique: `node -v`
+
+### 3. PowerShell (Windows nativo, já tem)
+
+### 4. Chromium do Playwright
+
+```bash
+npx playwright install chromium
+```
+
+Já foi feito quando instalou as deps.
 
 ## Uso
 
-```bash
-# Da pasta raiz do projeto painel-contabil
-npm run ecac:sync
-```
-
-Ou diretamente:
+### Listar clientes disponíveis
 
 ```bash
-node scripts/ecac/sync-ecac.mjs
+npm run ecac:list
 ```
 
-O Chromium vai abrir. Você loga. O script raspa. Você vê os resultados.
+Saída:
+
+```
+ID-CERT          TITULAR                            EMPRESA                            VALIDADE
+----------------------------------------------------------------------------------------
+CRT-A3B4C5D6     JOAO JEFFERSON COSTA NUNES         João Jefferson Costa Nunes         2026-11-24
+CRT-X1Y2Z3W4     JULIANA COSTA DOS SANTOS           JULIANA C D S CONSULTORIA          2027-03-15
+```
+
+### Sincronizar um cliente
+
+```bash
+npm run ecac:sync -- --cliente=CRT-A3B4C5D6
+```
+
+(use o `ID-CERT` da primeira coluna do `--list`)
+
+Ou pode usar substring da razão social:
+
+```bash
+npm run ecac:sync -- --cliente=Juliana
+```
+
+O script:
+1. Pede a senha do cert no terminal
+2. Baixa, importa, abre browser
+3. Você clica em "Seu certificado digital" no gov.br
+4. Confirma o cert (só tem 1)
+5. Aguarda raspar
+6. Remove o cert do Windows ao final
+
+### Flags úteis
+
+- `--list` — apenas lista, não roda
+- `--keep-cert` — não remove o cert do Windows ao final (útil pra debugar)
+
+## Como o cleanup funciona
+
+Após o script terminar (sucesso OU erro):
+
+1. ✓ Remove o cert do Windows store (`Remove-Item Cert:\CurrentUser\My\$thumbprint`)
+2. ✓ Apaga o `.pfx` temp de `scripts/ecac/temp/`
+
+Se algo der errado e o cert ficar no Windows:
+
+```powershell
+# Lista certs no store
+Get-ChildItem Cert:\CurrentUser\My
+
+# Remove pelo thumbprint
+Remove-Item Cert:\CurrentUser\My\<thumbprint>
+```
+
+Ou use a interface gráfica: `certmgr.msc` → Pessoal → Certificados.
 
 ## Output
 
 ```
 scripts/ecac/output/
-  20260527-150030/
-    dashboard-e-cac.png      # screenshot
-    dashboard-e-cac.html     # HTML completo
-    dashboard-e-cac.txt      # texto visível (sem tags)
+  CLI-C560639E-20260527-160030/
+    dashboard-e-cac.png
+    dashboard-e-cac.html
+    dashboard-e-cac.txt
     caixa-postal.png
     caixa-postal.html
     caixa-postal.txt
@@ -52,9 +123,7 @@ scripts/ecac/output/
     ...
 ```
 
-Os arquivos são `.gitignore`d — nada de dados sensíveis vai pro Git.
-
-## Adicionar/remover telas
+## Adicionar/remover telas raspadas
 
 Edite o array `telas` em `sync-ecac.mjs`:
 
@@ -64,40 +133,38 @@ const telas = [
     nome: "DCTFWeb",
     url: "https://cav.receita.fazenda.gov.br/ecac/Aplicacao.aspx?id=10056",
   },
-  // adicione mais...
 ];
 ```
 
-IDs comuns do e-CAC (mudam às vezes, confira no menu):
-- `10004` — Situação Fiscal
-- `10005` — Caixa Postal
-- `10056` — DCTFWeb
-- `10133` — PerDComp Web
+IDs comuns do e-CAC (mudam às vezes):
+- `10004` Situação Fiscal
+- `10005` Caixa Postal
+- `10056` DCTFWeb
+- `10133` PerDComp Web
 
 ## Avisos importantes
 
-- **A Receita Federal monitora RPA.** O próprio site declara limites (500 req/s, horário noturno pra grandes volumes). **Não rode em loop.** Use 1× por dia no máximo.
-- **Termos de uso** do e-CAC: você é responsável pelo uso. Não use pra raspar dados de terceiros sem autorização.
-- **Se o e-CAC mudar layout**, o script quebra. A SEFAZ não dá aviso prévio.
-- **gov.br pode bloquear** acessos suspeitos. Se acontecer, rode com `headless: false` (já é o default aqui) e use UA humano.
+- **A Receita Federal monitora RPA.** Limite declarado: 500 req/s, horário noturno pra grandes volumes. **Não rode em loop.** Use 1× por dia por cliente no máximo.
+- **Cada execução importa e remove o cert do Windows.** Funciona, mas é uma operação que toca o sistema (não destrutiva, mas visível em ferramentas de monitoring).
+- **Se o e-CAC mudar layout, quebra.** Você atualiza os IDs/URLs em `sync-ecac.mjs`.
+- **gov.br pode bloquear acessos suspeitos.** Use com bom senso.
 
 ## Quando o script falha
 
-Erros comuns:
-
-| Sintoma | Causa provável | Solução |
+| Sintoma | Causa | Solução |
 |---|---|---|
-| "Timeout - login não detectado" | Você levou >5 min pra logar | Aumenta `timeoutMs` em `aguardarLogin` |
-| Página não carrega após login | gov.br exigiu 2FA | Faça 2FA e aguarda — o script detecta sozinho |
-| HTML vem sem dados | E-CAC carrega via JS após render | Aumenta `await page.waitForTimeout(2000)` em `raspar` |
-| Sessão expira no meio | Tempo limite gov.br | Salva sessão nova, refaz |
+| `Faltam variáveis no .env.local` | Faltou SERVICE_ROLE_KEY | Adicione no `.env.local` (não comite!) |
+| `PowerShell falhou` na importação | Senha errada do .pfx | Confira no `/integracoes/certificados` |
+| `Timeout login` | Demorou >5min ou cert errado | Confirma se o cert no dialog é o certo |
+| Cert fica no Windows após erro | Script morreu no meio | Remova manual via `certmgr.msc` |
+| Dialog do Windows pede senha pro cert | Cert importado sem senha embutida | Normal — confirma com a senha do .pfx |
 
 ## Próximos passos (futuro)
 
-Esse script é a **base mínima funcional**. Pra usar em produção dá pra evoluir:
+Esse script é a base. Pra evoluir:
 
-1. **Parsing estruturado**: ler o HTML salvo e extrair pendências/DCTFs como JSON
-2. **Persistência no Supabase**: enviar resultado pra `integracoes_logs` (precisa da SUPABASE_SERVICE_ROLE_KEY em `.env`)
-3. **Agendamento**: rodar via Windows Task Scheduler 1×/dia
-4. **Múltiplas empresas**: loop por procurações cadastradas
-5. **Alertas**: se aparecer pendência nova, envia e-mail
+1. **Parsing estruturado**: ler o HTML salvo e extrair dados como JSON (pendências, DCTFs, etc.)
+2. **Salvar no Supabase**: enviar resultado pra `integracoes_logs` ou tabela própria de pendências
+3. **Agendamento**: Windows Task Scheduler 1×/dia por cliente
+4. **Alertas**: se pendência nova aparecer, e-mail/notificação
+5. **Múltiplos clientes em sequência**: loop por todos os clientes ativos
