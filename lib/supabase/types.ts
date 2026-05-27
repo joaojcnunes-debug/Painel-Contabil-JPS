@@ -24,6 +24,8 @@ export type StatusCliente = "Ativo" | "Inativo" | "Suspenso";
 
 export type TipoCadastro = "PJ" | "PF";
 
+export type AnexoSimplesDb = "I" | "II" | "III" | "IV" | "V";
+
 export interface Cliente {
   id_cliente: string;
   razao_social: string;
@@ -33,6 +35,7 @@ export interface Cliente {
   cpf: string | null;
   email: string | null;
   regime: RegimeTributario;
+  anexo_simples: AnexoSimplesDb | null;
   atividade_principal: string | null;
   inicio_contrato: string | null;
   status: StatusCliente;
@@ -203,6 +206,22 @@ export interface LancamentoModelo {
   updated_at: string | null;
 }
 
+export interface ApuracaoSimples {
+  id_apuracao: string;
+  id_cliente: string;
+  competencia: string;            // YYYY-MM
+  anexo: AnexoSimplesDb;
+  receita_mes: number;
+  rbt12: number;
+  faixa: number;
+  aliquota_nominal: number;
+  parcela_deduzir: number;
+  aliquota_efetiva: number;
+  valor_das: number;
+  observacoes: string | null;
+  created_at: string;
+}
+
 export interface ObrigacaoComentario {
   id_comentario: string;
   id_obrigacao: string;
@@ -256,6 +275,7 @@ export interface Database {
       lancamentos: TableShape<Lancamento>;
       lancamentos_modelos: TableShape<LancamentoModelo>;
       banco_movimentos: TableShape<BancoMovimento>;
+      apuracoes_simples: TableShape<ApuracaoSimples>;
     };
   };
 }

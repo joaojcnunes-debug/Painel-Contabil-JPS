@@ -10,6 +10,7 @@ import { Field, inputClass } from "@/components/ui/Field";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { gerarId } from "@/lib/utils";
 import type {
+  AnexoSimplesDb,
   Cliente,
   RegimeTributario,
   StatusCliente,
@@ -53,6 +54,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
 
   // Tributação / contrato
   const [regime, setRegime] = useState<RegimeTributario>("SIMPLES_NACIONAL");
+  const [anexoSimples, setAnexoSimples] = useState<AnexoSimplesDb | "">("");
   const [atividade, setAtividade] = useState("");
   const [inicioContrato, setInicioContrato] = useState("");
   const [status, setStatus] = useState<StatusCliente>("Ativo");
@@ -86,6 +88,7 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
     setCpf(cliente?.cpf ?? "");
     setEmail(cliente?.email ?? "");
     setRegime((cliente?.regime as RegimeTributario) ?? "SIMPLES_NACIONAL");
+    setAnexoSimples((cliente?.anexo_simples as AnexoSimplesDb) ?? "");
     setAtividade(cliente?.atividade_principal ?? "");
     setInicioContrato(cliente?.inicio_contrato ?? "");
     setStatus((cliente?.status as StatusCliente) ?? "Ativo");
@@ -213,6 +216,8 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
         cpf: tipo === "PF" && cpf ? onlyDigits(cpf) : null,
         email: email.trim().toLowerCase() || null,
         regime,
+        anexo_simples:
+          regime === "SIMPLES_NACIONAL" && anexoSimples ? anexoSimples : null,
         atividade_principal: atividade.trim() || null,
         inicio_contrato: inicioContrato || null,
         status,
@@ -393,6 +398,26 @@ export function ClienteFormModal({ open, onClose, cliente }: Props) {
               </select>
             </Field>
           </div>
+
+          {regime === "SIMPLES_NACIONAL" && (
+            <Field
+              label="Anexo do Simples"
+              hint="Define a tabela de alíquotas usada no cálculo do DAS"
+            >
+              <select
+                className={inputClass}
+                value={anexoSimples}
+                onChange={(e) => setAnexoSimples(e.target.value as AnexoSimplesDb | "")}
+              >
+                <option value="">— Não definido —</option>
+                <option value="I">Anexo I — Comércio</option>
+                <option value="II">Anexo II — Indústria</option>
+                <option value="III">Anexo III — Serviços (locação, agências)</option>
+                <option value="IV">Anexo IV — Construção, vigilância, advocacia</option>
+                <option value="V">Anexo V — Serviços intelectuais (fator R)</option>
+              </select>
+            </Field>
+          )}
 
           <Field label="Atividade principal">
             <input
