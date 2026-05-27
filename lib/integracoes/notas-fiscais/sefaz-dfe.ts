@@ -91,6 +91,8 @@ function extrairKeyECert(pfxBuffer: Buffer, senha: string): {
 }
 
 // ─── Monta XML interno distDFeInt ────────────────────────
+// IMPORTANTE: SEFAZ rejeita schema (cStat 215) se houver whitespace
+// entre tags ou declaração XML interna. Tudo em UMA linha, sem indent.
 function montarDistDFeInt(
   cnpjOuCpf: string,
   ambiente: AmbienteSefaz,
@@ -98,31 +100,14 @@ function montarDistDFeInt(
 ): string {
   const tipoTag = cnpjOuCpf.length === 14 ? "CNPJ" : "CPF";
   const nsuPadded = ultimoNsu.padStart(15, "0");
-
-  // Importante: schemaLocation, namespaces e ordem exatos
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
-  <tpAmb>${ambiente}</tpAmb>
-  <cUFAutor>${C_UF_NACIONAL}</cUFAutor>
-  <${tipoTag}>${cnpjOuCpf}</${tipoTag}>
-  <distNSU>
-    <ultNSU>${nsuPadded}</ultNSU>
-  </distNSU>
-</distDFeInt>`;
+  // Single line, sem <?xml?>, sem whitespace entre tags
+  return `<distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01"><tpAmb>${ambiente}</tpAmb><cUFAutor>${C_UF_NACIONAL}</cUFAutor><${tipoTag}>${cnpjOuCpf}</${tipoTag}><distNSU><ultNSU>${nsuPadded}</ultNSU></distNSU></distDFeInt>`;
 }
 
 // ─── Envelope SOAP do nfeDistDFeInteresse ────────────────
+// Single line também — SEFAZ não tolera pretty-print.
 function montarEnvelopeSoap(distDFeIntXml: string): string {
-  // Remove declaração XML interna (envelope já tem)
-  const inner = distDFeIntXml.replace(/^<\?xml[^?]+\?>\s*/, "");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
-  <soap:Body>
-    <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
-      <nfeDadosMsg>${inner}</nfeDadosMsg>
-    </nfeDistDFeInteresse>
-  </soap:Body>
-</soap:Envelope>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body><nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"><nfeDadosMsg>${distDFeIntXml}</nfeDadosMsg></nfeDistDFeInteresse></soap:Body></soap:Envelope>`;
 }
 
 // ─── Função principal ────────────────────────────────────
