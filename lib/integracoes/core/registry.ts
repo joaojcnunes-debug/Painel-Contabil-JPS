@@ -27,10 +27,11 @@ export const MODULOS: ModuloMeta[] = [
     descricao:
       "Eventos trabalhistas (S-2200/S-2299), eventos de folha (S-1200) e eventos SST (S-2210 CAT, S-2220 ASO, S-2240 riscos).",
     cor: "from-emerald-50 to-white border-emerald-200",
+    slug: "esocial",
     acoes: [
-      { id: "validar_eventos", label: "Validar eventos pendentes" },
+      { id: "listar_pendentes", label: "Listar eventos pendentes" },
       { id: "enviar_eventos", label: "Enviar lote de eventos" },
-      { id: "consultar_recibo", label: "Consultar recibo de entrega" },
+      { id: "listar_enviados", label: "Histórico de lotes enviados" },
       { id: "gerar_xml_sst", label: "Gerar XMLs SST (S-2210/2220/2240)" },
     ],
   },

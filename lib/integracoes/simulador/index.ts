@@ -243,10 +243,143 @@ function rfMock(
 function esocialMock(
   base: RespostaIntegracao,
   seed: number,
-  _acao: string
+  acao: string
 ): RespostaIntegracao {
-  const pendencias: Pendencia[] = [];
   const nFunc = (seed % 8) + 1;
+
+  if (acao === "validar_eventos" || acao === "listar_pendentes") {
+    const eventos = [];
+    // S-1200 sempre algum pendente do mês corrente
+    for (let i = 0; i < (seed % 5) + 1; i++) {
+      eventos.push({
+        codigo: "S-1200",
+        nome: "Remuneração CLT",
+        funcionario: `Funcionário ${(i + 1).toString().padStart(2, "0")}`,
+        competencia: competenciaAnterior(0),
+        criado_em: isoDataAhead(-(i + 1)),
+        status: "PENDENTE_ENVIO",
+      });
+    }
+    if (seed % 3 === 0) {
+      eventos.push({
+        codigo: "S-2200",
+        nome: "Admissão",
+        funcionario: `Novo Funcionário ${seed % 10}`,
+        competencia: competenciaAnterior(0),
+        criado_em: isoDataAhead(-2),
+        status: "PENDENTE_ENVIO",
+      });
+    }
+    if (seed % 5 === 0) {
+      eventos.push({
+        codigo: "S-2299",
+        nome: "Desligamento",
+        funcionario: `Funcionário ${(seed % 5) + 5}`,
+        competencia: competenciaAnterior(0),
+        criado_em: isoDataAhead(-3),
+        status: "PENDENTE_ENVIO",
+      });
+    }
+    if (seed % 7 === 0) {
+      eventos.push({
+        codigo: "S-2240",
+        nome: "Riscos ambientais (SST)",
+        funcionario: `Funcionário ${(seed % 3) + 1}`,
+        competencia: competenciaAnterior(0),
+        criado_em: isoDataAhead(-7),
+        status: "PENDENTE_ENVIO",
+      });
+    }
+    if (seed % 11 === 0) {
+      eventos.push({
+        codigo: "S-1210",
+        nome: "Pagamentos",
+        funcionario: "Folha geral",
+        competencia: competenciaAnterior(0),
+        criado_em: isoDataAhead(-1),
+        status: "PENDENTE_ENVIO",
+      });
+    }
+    return {
+      ...base,
+      dados: { eventos, total: eventos.length },
+      mensagens: [`${eventos.length} evento(s) pendente(s) de envio.`],
+    };
+  }
+
+  if (acao === "enviar_eventos") {
+    const total = (seed % 5) + 2;
+    const recibo = `1.2.${competenciaAnterior(0).replace("-", "")}.${(seed % 9000) + 1000}`;
+    return {
+      ...base,
+      dados: {
+        recibo,
+        protocolo: `${competenciaAnterior(0).replace("-", "")}.${(seed * 7) % 999999}`,
+        eventos_enviados: total,
+        data_envio: new Date().toISOString(),
+      },
+      mensagens: [`Lote enviado com sucesso. Recibo: ${recibo}`],
+    };
+  }
+
+  if (acao === "consultar_recibo" || acao === "listar_enviados") {
+    const lotes = [];
+    for (let i = 0; i < 5; i++) {
+      lotes.push({
+        recibo: `1.2.${competenciaAnterior(i).replace("-", "")}.${(seed * (i + 1)) % 9000 + 1000}`,
+        data_envio: isoDataAhead(-(i * 30 + 5)),
+        eventos_total: 8 + ((seed * (i + 1)) % 20),
+        eventos_aceitos:
+          i === 0 && seed % 6 === 0
+            ? 6
+            : 8 + ((seed * (i + 1)) % 20),
+        eventos_rejeitados: i === 0 && seed % 6 === 0 ? 2 : 0,
+        status: i === 0 && seed % 6 === 0 ? "PARCIAL" : "PROCESSADO",
+      });
+    }
+    return {
+      ...base,
+      dados: { lotes },
+      mensagens: [`${lotes.length} lote(s) no histórico.`],
+    };
+  }
+
+  if (acao === "gerar_xml_sst") {
+    return {
+      ...base,
+      dados: {
+        gerados: [
+          {
+            codigo: "S-2210",
+            nome: "CAT",
+            xml_size_bytes: 2400 + (seed % 800),
+            funcionario: `Funcionário ${(seed % 5) + 1}`,
+            data_acidente: isoDataAhead(-(seed % 30 + 5)),
+          },
+          {
+            codigo: "S-2220",
+            nome: "ASO",
+            xml_size_bytes: 1800 + (seed % 600),
+            funcionario: `Funcionário ${(seed % 5) + 2}`,
+            tipo_aso: "PERIODICO",
+            data_exame: isoDataAhead(-(seed % 15)),
+          },
+          {
+            codigo: "S-2240",
+            nome: "Riscos ambientais",
+            xml_size_bytes: 3600 + (seed % 1200),
+            funcionario: `Funcionário ${(seed % 5) + 3}`,
+            ambiente: "Linha de produção",
+            qtd_riscos: 3,
+          },
+        ],
+      },
+      mensagens: ["3 XMLs SST gerados e prontos pra envio."],
+    };
+  }
+
+  // Default — pendências resumo
+  const pendencias: Pendencia[] = [];
   if (seed % 2 === 0) {
     pendencias.push({
       tipo: "S-1200 pendente",
