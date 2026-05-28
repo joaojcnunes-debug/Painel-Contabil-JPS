@@ -23,6 +23,7 @@ import type {
 import { ClienteHeaderActions } from "./ClienteHeader";
 import { ContatosSection } from "@/components/contatos/ContatosSection";
 import { AbrirEcacButton } from "@/components/sessoes-ecac/AbrirEcacButton";
+import { PendenciasCliente } from "@/components/clientes/PendenciasCliente";
 
 const REGIME_LABEL: Record<string, string> = {
   SIMPLES_NACIONAL: "Simples Nacional",
@@ -217,6 +218,11 @@ export default async function ClienteDetalhe({
           icon={Receipt}
           tone={totalAReceber > 0 ? "verde" : "neutral"}
         />
+      </div>
+
+      {/* Pendências consolidadas */}
+      <div className="mb-4">
+        <PendenciasCliente idCliente={cliente.id_cliente} />
       </div>
 
       {/* Linhas-resumo */}
