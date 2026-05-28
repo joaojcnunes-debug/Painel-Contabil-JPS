@@ -16,12 +16,14 @@
 //   POST { to: "x@y.com" }      → envia TUDO pra esse e-mail (teste)
 //
 // Variáveis necessárias (configurar como Secrets na Edge Function):
-//   - RESEND_API_KEY   (obrigatório — re_xxxxx)
-//   - EMAIL_FROM       (opcional — default "JSP <onboarding@resend.dev>")
-//   - ALERTA_DIAS      (opcional — default 3)
+//   - GMAIL_USER         (obrigatório)
+//   - GMAIL_APP_PASSWORD (obrigatório)
+//   - EMAIL_FROM_NAME    (opcional — default "JSP Contabilidade")
+//   - ALERTA_DIAS        (opcional — default 3)
 //
 // As 3 vars do Supabase (URL, ANON, SERVICE_ROLE) já vêm setadas.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 type CatalogoMin = { sigla: string; nome: string };
 type ClienteMin = { razao_social: string };
@@ -57,21 +59,18 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
-    const FROM =
-      Deno.env.get("EMAIL_FROM") ??
-      "JSP Contabilidade <onboarding@resend.dev>";
+    const GMAIL_USER = Deno.env.get("GMAIL_USER");
+    const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
+    const FROM_NAME = Deno.env.get("EMAIL_FROM_NAME") ?? "JSP Contabilidade";
     const DIAS = Number(Deno.env.get("ALERTA_DIAS") ?? "3");
 
-    if (!RESEND_KEY) {
+    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
       return json(
-        {
-          error:
-            "RESEND_API_KEY não configurado. Adicione em Edge Functions → Secrets.",
-        },
+        { error: "GMAIL_USER ou GMAIL_APP_PASSWORD não configurados" },
         500
       );
     }
+    const FROM = `${FROM_NAME} <${GMAIL_USER}>`;
 
     // Lê body se for POST
     let body: { dry_run?: boolean; to?: string } = {};
@@ -178,55 +177,58 @@ Deno.serve(async (req) => {
       qtd: number;
     }> = [];
 
-    for (const [idCliente, items] of porCliente.entries()) {
-      const contato = dest.get(idCliente);
-      const cliente = items[0].clientes?.razao_social ?? "Cliente";
-      if (!contato) {
-        semEmail++;
-        continue;
-      }
-
-      const destinoFinal = forceTo ?? contato.email;
-      const html = buildHtml(cliente, contato.nome, items);
-      const assunto = `JSP — ${items.length} obrigaç${items.length === 1 ? "ão" : "ões"} a vencer`;
-
-      preview.push({
-        cliente,
-        destinatario: destinoFinal,
-        qtd: items.length,
-      });
-
-      if (dryRun) {
-        enviados++;
-        continue;
-      }
-
-      try {
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${RESEND_KEY}`,
-            "Content-Type": "application/json",
+    const smtp = dryRun
+      ? null
+      : new SMTPClient({
+          connection: {
+            hostname: "smtp.gmail.com",
+            port: 465,
+            tls: true,
+            auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
           },
-          body: JSON.stringify({
+        });
+
+    try {
+      for (const [idCliente, items] of porCliente.entries()) {
+        const contato = dest.get(idCliente);
+        const cliente = items[0].clientes?.razao_social ?? "Cliente";
+        if (!contato) {
+          semEmail++;
+          continue;
+        }
+
+        const destinoFinal = forceTo ?? contato.email;
+        const html = buildHtml(cliente, contato.nome, items);
+        const assunto = `JSP — ${items.length} obrigaç${items.length === 1 ? "ão" : "ões"} a vencer`;
+
+        preview.push({
+          cliente,
+          destinatario: destinoFinal,
+          qtd: items.length,
+        });
+
+        if (dryRun) {
+          enviados++;
+          continue;
+        }
+
+        try {
+          await smtp!.send({
             from: FROM,
             to: destinoFinal,
             subject: assunto,
             html,
-          }),
-        });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => res.statusText);
-          falhas.push({ cliente, erro: `HTTP ${res.status} — ${txt}` });
-        } else {
+          });
           enviados++;
+        } catch (e) {
+          falhas.push({
+            cliente,
+            erro: e instanceof Error ? e.message : String(e),
+          });
         }
-      } catch (e) {
-        falhas.push({
-          cliente,
-          erro: e instanceof Error ? e.message : String(e),
-        });
       }
+    } finally {
+      if (smtp) await smtp.close();
     }
 
     return json({

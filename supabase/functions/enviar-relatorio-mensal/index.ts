@@ -19,10 +19,12 @@
 //   POST { to: "x@y.com" }         → envia tudo pra esse e-mail (teste)
 //
 // Secrets:
-//   - RESEND_API_KEY (obrigatório, mesmo dos outros alertas)
-//   - EMAIL_FROM (opcional)
-//   - PORTAL_URL (opcional — default: https://painel-contabil-jps.vercel.app)
+//   - GMAIL_USER         (obrigatório)
+//   - GMAIL_APP_PASSWORD (obrigatório)
+//   - EMAIL_FROM_NAME    (opcional)
+//   - PORTAL_URL         (opcional — default: https://painel-contabil-jps.vercel.app)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -100,21 +102,18 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
-    const FROM =
-      Deno.env.get("EMAIL_FROM") ??
-      "JSP Contabilidade <onboarding@resend.dev>";
+    const GMAIL_USER = Deno.env.get("GMAIL_USER");
+    const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
+    const FROM_NAME = Deno.env.get("EMAIL_FROM_NAME") ?? "JSP Contabilidade";
     const PORTAL_URL =
       Deno.env.get("PORTAL_URL") ?? "https://painel-contabil-jps.vercel.app";
 
-    if (!RESEND_KEY)
+    if (!GMAIL_USER || !GMAIL_APP_PASSWORD)
       return json(
-        {
-          error:
-            "RESEND_API_KEY não configurado em Edge Functions → Secrets.",
-        },
+        { error: "GMAIL_USER ou GMAIL_APP_PASSWORD não configurados" },
         500
       );
+    const FROM = `${FROM_NAME} <${GMAIL_USER}>`;
 
     let body: { competencia?: string; dry_run?: boolean; to?: string } = {};
     try {
@@ -313,52 +312,52 @@ Deno.serve(async (req) => {
     const falhas: Array<{ cliente: string; erro: string }> = [];
     const preview: Array<{ cliente: string; destinatario: string }> = [];
 
-    for (const r of comAtividade) {
-      const contato = dest.get(r.cliente.id_cliente);
-      if (!contato) {
-        semEmail++;
-        continue;
-      }
-      const destinoFinal = forceTo ?? contato.email;
-      const html = buildHtml(r, contato.nome, mesNome, cfg, PORTAL_URL);
-      const assunto = `${cfg?.nome_escritorio ?? "JSP"} — Relatório mensal • ${mesNome}`;
-
-      preview.push({ cliente: r.cliente.razao_social, destinatario: destinoFinal });
-
-      if (dryRun) {
-        enviados++;
-        continue;
-      }
-
-      try {
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${RESEND_KEY}`,
-            "Content-Type": "application/json",
+    const smtp = dryRun
+      ? null
+      : new SMTPClient({
+          connection: {
+            hostname: "smtp.gmail.com",
+            port: 465,
+            tls: true,
+            auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
           },
-          body: JSON.stringify({
+        });
+
+    try {
+      for (const r of comAtividade) {
+        const contato = dest.get(r.cliente.id_cliente);
+        if (!contato) {
+          semEmail++;
+          continue;
+        }
+        const destinoFinal = forceTo ?? contato.email;
+        const html = buildHtml(r, contato.nome, mesNome, cfg, PORTAL_URL);
+        const assunto = `${cfg?.nome_escritorio ?? "JSP"} — Relatório mensal • ${mesNome}`;
+
+        preview.push({ cliente: r.cliente.razao_social, destinatario: destinoFinal });
+
+        if (dryRun) {
+          enviados++;
+          continue;
+        }
+
+        try {
+          await smtp!.send({
             from: FROM,
             to: destinoFinal,
             subject: assunto,
             html,
-          }),
-        });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => res.statusText);
+          });
+          enviados++;
+        } catch (e) {
           falhas.push({
             cliente: r.cliente.razao_social,
-            erro: `HTTP ${res.status} — ${txt}`,
+            erro: e instanceof Error ? e.message : String(e),
           });
-        } else {
-          enviados++;
         }
-      } catch (e) {
-        falhas.push({
-          cliente: r.cliente.razao_social,
-          erro: e instanceof Error ? e.message : String(e),
-        });
       }
+    } finally {
+      if (smtp) await smtp.close();
     }
 
     return json({

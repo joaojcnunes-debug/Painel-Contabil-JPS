@@ -15,10 +15,12 @@
 //   GET ou POST {}              → envio real
 //   POST { dry_run: true }      → não envia, devolve o que enviaria
 //   POST { to: "x@y.com" }      → envia TUDO pra esse e-mail (teste)
+//   POST { test_smtp: true, to: "x@y.com" } → envia email sintético só pra validar SMTP
 //
 // Variáveis:
-//   - RESEND_API_KEY (obrigatório)
-//   - EMAIL_FROM (opcional, default "JSP <onboarding@resend.dev>")
+//   - GMAIL_USER (obrigatório — ex: contabil.jsp@gmail.com)
+//   - GMAIL_APP_PASSWORD (obrigatório — App Password de 16 chars do Gmail, sem espaços)
+//   - EMAIL_FROM_NAME (opcional, default "JSP Contabilidade")
 //
 // Agendamento (pg_cron):
 //   SELECT cron.schedule(
@@ -34,6 +36,7 @@
 //   );
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 type ClienteMin = { razao_social: string };
 type ObrigRow = {
@@ -119,19 +122,19 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
-    const FROM =
-      Deno.env.get("EMAIL_FROM") ??
-      "JSP Contabilidade <onboarding@resend.dev>";
+    const GMAIL_USER = Deno.env.get("GMAIL_USER");
+    const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD");
+    const FROM_NAME = Deno.env.get("EMAIL_FROM_NAME") ?? "JSP Contabilidade";
 
-    if (!RESEND_KEY) {
+    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
       return json(
-        { error: "RESEND_API_KEY não configurado" },
+        { error: "GMAIL_USER ou GMAIL_APP_PASSWORD não configurados" },
         500
       );
     }
+    const FROM = `${FROM_NAME} <${GMAIL_USER}>`;
 
-    let body: { dry_run?: boolean; to?: string } = {};
+    let body: { dry_run?: boolean; to?: string; test_smtp?: boolean } = {};
     if (req.method === "POST") {
       try {
         body = await req.json();
@@ -140,7 +143,38 @@ Deno.serve(async (req) => {
       }
     }
     const dryRun = !!body.dry_run;
+    const testSmtp = !!body.test_smtp;
     const forceTo = body.to ? String(body.to).trim().toLowerCase() : null;
+
+    if (testSmtp) {
+      if (!forceTo) {
+        return json({ error: "test_smtp requer parâmetro 'to'" }, 400);
+      }
+      const smtp = new SMTPClient({
+        connection: {
+          hostname: "smtp.gmail.com",
+          port: 465,
+          tls: true,
+          auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
+        },
+      });
+      try {
+        await smtp.send({
+          from: FROM,
+          to: forceTo,
+          subject: "JSP — Teste SMTP",
+          html: `<p>Teste de conexão SMTP via Gmail.</p><p>Hora: ${new Date().toISOString()}</p>`,
+        });
+        return json({ ok: true, modo: "test_smtp", destinatario: forceTo });
+      } catch (e) {
+        return json(
+          { ok: false, modo: "test_smtp", erro: e instanceof Error ? e.message : String(e) },
+          500
+        );
+      } finally {
+        await smtp.close();
+      }
+    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -326,36 +360,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    for (const u of enviar) {
-      try {
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${RESEND_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+    const smtp = new SMTPClient({
+      connection: {
+        hostname: "smtp.gmail.com",
+        port: 465,
+        tls: true,
+        auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
+      },
+    });
+
+    try {
+      for (const u of enviar) {
+        try {
+          await smtp.send({
             from: FROM,
             to: u.email,
             subject,
             html,
-          }),
-        });
-        if (!res.ok) {
-          const txt = await res.text().catch(() => res.statusText);
+          });
+          enviados++;
+        } catch (e) {
           falhas.push({
             destinatario: u.email,
-            erro: `HTTP ${res.status} — ${txt}`,
+            erro: e instanceof Error ? e.message : String(e),
           });
-        } else {
-          enviados++;
         }
-      } catch (e) {
-        falhas.push({
-          destinatario: u.email,
-          erro: e instanceof Error ? e.message : String(e),
-        });
       }
+    } finally {
+      await smtp.close();
     }
 
     return json({
