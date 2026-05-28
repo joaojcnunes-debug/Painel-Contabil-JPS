@@ -19,8 +19,9 @@ npx supabase functions deploy enviar-alertas-diarios-equipe
 
 No dashboard Supabase → Edge Functions → enviar-alertas-diarios-equipe → Secrets:
 
-- `RESEND_API_KEY` (obrigatório): chave da Resend
-- `EMAIL_FROM` (opcional): default `JSP Contabilidade <onboarding@resend.dev>`
+- `GMAIL_USER` (obrigatório): ex. `contabil.jsp@gmail.com`
+- `GMAIL_APP_PASSWORD` (obrigatório): App Password de 16 chars do Gmail, sem espaços (https://myaccount.google.com/apppasswords)
+- `EMAIL_FROM_NAME` (opcional): default `JSP Contabilidade` — vira `${EMAIL_FROM_NAME} <${GMAIL_USER}>`
 
 ## Testar antes de agendar
 

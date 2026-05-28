@@ -69,8 +69,10 @@ Deploy via Dashboard Supabase (Functions → Deploy new function), **JWT verific
 | Função | Propósito | Secrets |
 |---|---|---|
 | `admin-reset-password` | Admin troca senha de outro user | — (usa SERVICE_ROLE já set) |
-| `enviar-alertas-vencimento` | E-mail de obrigações vencendo | `RESEND_API_KEY` |
-| `enviar-alertas-faturas` | E-mail de cobrança de honorários | `RESEND_API_KEY` |
+| `enviar-alertas-vencimento` | E-mail de obrigações vencendo | `GMAIL_USER` + `GMAIL_APP_PASSWORD` |
+| `enviar-alertas-faturas` | E-mail de cobrança de honorários | `GMAIL_USER` + `GMAIL_APP_PASSWORD` |
+| `enviar-alertas-diarios-equipe` | Resumo diário pra equipe (8h BRT) | `GMAIL_USER` + `GMAIL_APP_PASSWORD` |
+| `enviar-relatorio-mensal` | Relatório mensal pro cliente | `GMAIL_USER` + `GMAIL_APP_PASSWORD` |
 | `atualizar-status-vencidos` | Marca atrasadas (cron diário) | — |
 
 ## Auth — pré-requisitos

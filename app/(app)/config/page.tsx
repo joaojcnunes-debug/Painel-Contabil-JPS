@@ -374,8 +374,8 @@ export default function ConfigPage() {
             <p className="text-[11px] text-gray-400 mt-4 leading-relaxed">
               Precisa das Edge Functions <code>enviar-alertas-vencimento</code>,{" "}
               <code>enviar-alertas-faturas</code> e{" "}
-              <code>enviar-relatorio-mensal</code> deployadas + secret{" "}
-              <code>RESEND_API_KEY</code>.
+              <code>enviar-relatorio-mensal</code> deployadas + secrets{" "}
+              <code>GMAIL_USER</code> e <code>GMAIL_APP_PASSWORD</code>.
             </p>
           </div>
 
