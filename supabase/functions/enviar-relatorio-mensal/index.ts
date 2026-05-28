@@ -257,6 +257,29 @@ Deno.serve(async (req) => {
     );
 
     if (comAtividade.length === 0) {
+      if (forceTo) {
+        const smtp = new SMTPClient({
+          connection: {
+            hostname: "smtp.gmail.com",
+            port: 465,
+            tls: true,
+            auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
+          },
+        });
+        try {
+          await smtp.send({
+            from: FROM,
+            to: forceTo,
+            subject: `JSP — Teste SMTP (sem atividade em ${mesNome})`,
+            html: `<p>Teste do botão "Teste" em <strong>Relatório mensal</strong>.</p><p>Nenhum cliente teve atividade em ${mesNome}, então este é um email sintético só pra validar SMTP.</p><p>Hora: ${new Date().toISOString()}</p>`,
+          });
+          return json({ ok: true, modo: "test_smtp_empty", competencia, destinatario: forceTo });
+        } catch (e) {
+          return json({ ok: false, modo: "test_smtp_empty", competencia, erro: e instanceof Error ? e.message : String(e) }, 500);
+        } finally {
+          await smtp.close();
+        }
+      }
       return json({
         ok: true,
         competencia,

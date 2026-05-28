@@ -107,6 +107,29 @@ Deno.serve(async (req) => {
     const faturas = (fatData ?? []) as unknown as Fat[];
 
     if (faturas.length === 0) {
+      if (forceTo) {
+        const smtp = new SMTPClient({
+          connection: {
+            hostname: "smtp.gmail.com",
+            port: 465,
+            tls: true,
+            auth: { username: GMAIL_USER, password: GMAIL_APP_PASSWORD },
+          },
+        });
+        try {
+          await smtp.send({
+            from: FROM,
+            to: forceTo,
+            subject: "JSP — Teste SMTP (sem faturas)",
+            html: `<p>Teste do botão "Teste" em <strong>Faturas a vencer</strong>.</p><p>Não havia faturas nos próximos ${DIAS} dias, então este é um email sintético só pra validar SMTP.</p><p>Hora: ${new Date().toISOString()}</p>`,
+          });
+          return json({ ok: true, modo: "test_smtp_empty", destinatario: forceTo });
+        } catch (e) {
+          return json({ ok: false, modo: "test_smtp_empty", erro: e instanceof Error ? e.message : String(e) }, 500);
+        } finally {
+          await smtp.close();
+        }
+      }
       return json({
         ok: true,
         enviados: 0,
