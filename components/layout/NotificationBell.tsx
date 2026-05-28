@@ -5,8 +5,10 @@ import Link from "next/link";
 import {
   Bell,
   CalendarCheck,
+  FileLock2,
   FileText,
   Receipt,
+  ShieldCheck,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,8 @@ const TIPO_ICON: Record<NotificationItem["tipo"], React.ElementType> = {
   obrigacao: CalendarCheck,
   documento: FileText,
   fatura: Receipt,
+  sessao_ecac: ShieldCheck,
+  certificado: FileLock2,
 };
 
 function formatRelativo(iso: string) {

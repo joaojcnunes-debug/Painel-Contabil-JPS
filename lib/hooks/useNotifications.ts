@@ -5,7 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type NotificationItem = {
   id: string;
-  tipo: "obrigacao" | "documento" | "fatura";
+  tipo: "obrigacao" | "documento" | "fatura" | "sessao_ecac" | "certificado";
   titulo: string;
   subtitulo: string;
   href: string;
@@ -141,6 +141,97 @@ export function useNotifications(perfil: string | null | undefined) {
             href: `/honorarios?cliente=${f.id_cliente}`,
             data: f.data_vencimento,
             prioridade: atrasada ? "alta" : "baixa",
+          });
+        }
+      }
+
+      // 4) Sessões e-CAC com pendência nos últimos 7 dias (só equipe)
+      if (ehEquipe) {
+        const seteDiasAtras = isoPastMs(7 * HORAS_24);
+        const { data: sessoes } = await supabase
+          .from("sessoes_ecac")
+          .select(
+            "id_sessao, id_cliente, iniciada_em, situacao_fiscal, mensagens_nao_lidas, pendencias, clientes(razao_social)"
+          )
+          .gte("iniciada_em", seteDiasAtras)
+          .order("iniciada_em", { ascending: false })
+          .limit(10);
+        for (const s of (sessoes ?? []) as Array<{
+          id_sessao: string;
+          id_cliente: string;
+          iniciada_em: string;
+          situacao_fiscal: string | null;
+          mensagens_nao_lidas: number | null;
+          pendencias: Array<{ tipo?: string }> | null;
+          clientes: { razao_social: string } | null;
+        }>) {
+          const temPend =
+            s.situacao_fiscal === "PENDENTE" ||
+            (s.pendencias?.length ?? 0) > 0;
+          const temMsg = (s.mensagens_nao_lidas ?? 0) > 0;
+          if (!temPend && !temMsg) continue;
+          const detalhes: string[] = [];
+          if (s.pendencias?.length) {
+            const tipos = s.pendencias
+              .map((p) => p.tipo)
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(", ");
+            detalhes.push(
+              `${s.pendencias.length} pendência(s)${tipos ? ` (${tipos})` : ""}`
+            );
+          }
+          if (temMsg) {
+            detalhes.push(`${s.mensagens_nao_lidas} msg(s) na caixa postal`);
+          }
+          items.push({
+            id: `ecac-${s.id_sessao}`,
+            tipo: "sessao_ecac",
+            titulo: `e-CAC • ${s.clientes?.razao_social ?? "—"}`,
+            subtitulo: detalhes.join(" · "),
+            href: `/sessoes-ecac`,
+            data: s.iniciada_em,
+            prioridade: temPend ? "alta" : "media",
+          });
+        }
+      }
+
+      // 5) Certificados A1 vencendo em <30 dias ou já vencidos (só equipe)
+      if (ehEquipe) {
+        const em30 = isoFutDias(30);
+        const { data: certs } = await supabase
+          .from("certificados_digitais")
+          .select(
+            "id_certificado, titular_nome, validade_fim, id_cliente, clientes(razao_social)"
+          )
+          .not("validade_fim", "is", null)
+          .lte("validade_fim", em30)
+          .order("validade_fim", { ascending: true })
+          .limit(10);
+        for (const c of (certs ?? []) as Array<{
+          id_certificado: string;
+          titular_nome: string;
+          validade_fim: string;
+          id_cliente: string | null;
+          clientes: { razao_social: string } | null;
+        }>) {
+          const venc = new Date(c.validade_fim + "T12:00");
+          const dias = Math.ceil((venc.getTime() - Date.now()) / 86400000);
+          const vencido = dias < 0;
+          const dataBr = venc.toLocaleDateString("pt-BR");
+          const escopo = c.clientes?.razao_social ?? "Escritório";
+          items.push({
+            id: `crt-${c.id_certificado}`,
+            tipo: "certificado",
+            titulo: `Certificado • ${c.titular_nome}`,
+            subtitulo: vencido
+              ? `VENCIDO há ${-dias}d (${dataBr}) — ${escopo}`
+              : dias === 0
+              ? `Vence HOJE (${dataBr}) — ${escopo}`
+              : `Vence em ${dias}d (${dataBr}) — ${escopo}`,
+            href: `/integracoes/certificados`,
+            data: c.validade_fim,
+            prioridade: vencido || dias <= 7 ? "alta" : "media",
           });
         }
       }
