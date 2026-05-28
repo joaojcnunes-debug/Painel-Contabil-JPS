@@ -41,8 +41,29 @@ function formatData(iso: string | null): string {
   return d.toLocaleDateString("pt-BR");
 }
 
-export function PendenciasCliente({ idCliente }: { idCliente: string }) {
-  const { data: pendencias = [], isLoading } = usePendenciasCliente(idCliente);
+export function PendenciasCliente({
+  idCliente,
+  mode = "equipe",
+}: {
+  idCliente: string;
+  mode?: "equipe" | "cliente";
+}) {
+  const { data: pendenciasRaw = [], isLoading } = usePendenciasCliente(idCliente);
+
+  // No portal do cliente, oculta categorias internas (e-CAC + certificados)
+  // e reescreve os hrefs pra rotas /portal/*
+  const pendencias =
+    mode === "cliente"
+      ? pendenciasRaw
+          .filter((p) => p.categoria === "obrigacao" || p.categoria === "fatura")
+          .map((p) => ({
+            ...p,
+            href:
+              p.categoria === "obrigacao"
+                ? "/portal/obrigacoes"
+                : "/portal/financeiro",
+          }))
+      : pendenciasRaw;
 
   const altas = pendencias.filter((p) => p.severidade === "alta").length;
   const total = pendencias.length;

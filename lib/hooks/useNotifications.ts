@@ -25,13 +25,17 @@ function isoPastMs(ms: number) {
   return new Date(Date.now() - ms).toISOString();
 }
 
-export function useNotifications(perfil: string | null | undefined) {
+export function useNotifications(
+  perfil: string | null | undefined,
+  idCliente?: string | null
+) {
   const ehEquipe =
     perfil === "Admin" || perfil === "Contador" || perfil === "Assistente";
+  const ehCliente = perfil === "Cliente" && !!idCliente;
 
   return useQuery({
-    queryKey: ["notifications", perfil ?? "anon"],
-    enabled: !!perfil,
+    queryKey: ["notifications", perfil ?? "anon", idCliente ?? ""],
+    enabled: !!perfil && (ehEquipe || ehCliente),
     refetchInterval: 60_000, // poll cada 1 min
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
@@ -40,7 +44,7 @@ export function useNotifications(perfil: string | null | undefined) {
       const em3 = isoFutDias(3);
 
       // 1) Obrigações vencendo nos próximos 3 dias (ou já atrasadas)
-      const { data: obrigs } = await supabase
+      let obrigQ = supabase
         .from("obrigacoes")
         .select(
           "id_obrigacao, data_vencimento, status, clientes(razao_social), obrigacoes_catalogo(sigla)"
@@ -49,6 +53,8 @@ export function useNotifications(perfil: string | null | undefined) {
         .lte("data_vencimento", em3)
         .order("data_vencimento", { ascending: true })
         .limit(15);
+      if (ehCliente) obrigQ = obrigQ.eq("id_cliente", idCliente!);
+      const { data: obrigs } = await obrigQ;
 
       for (const o of (obrigs ?? []) as Array<{
         id_obrigacao: string;
@@ -64,12 +70,52 @@ export function useNotifications(perfil: string | null | undefined) {
         items.push({
           id: `obr-${o.id_obrigacao}`,
           tipo: "obrigacao",
-          titulo: `${o.obrigacoes_catalogo?.sigla ?? "—"} • ${o.clientes?.razao_social ?? "—"}`,
+          titulo: ehCliente
+            ? `${o.obrigacoes_catalogo?.sigla ?? "—"}`
+            : `${o.obrigacoes_catalogo?.sigla ?? "—"} • ${o.clientes?.razao_social ?? "—"}`,
           subtitulo: atrasada ? `Vencida ${dataBr}` : `Vence ${dataBr}`,
-          href: `/obrigacoes/${o.id_obrigacao}`,
+          href: ehCliente ? `/portal/obrigacoes` : `/obrigacoes/${o.id_obrigacao}`,
           data: o.data_vencimento,
           prioridade: atrasada ? "alta" : "media",
         });
+      }
+
+      // 1.5) Faturas do cliente (em aberto / atrasadas) — só pro próprio cliente
+      if (ehCliente) {
+        const { data: fatsCli } = await supabase
+          .from("faturas")
+          .select("id_fatura, competencia, data_vencimento, valor, status")
+          .eq("id_cliente", idCliente!)
+          .in("status", ["ABERTA", "ATRASADA"])
+          .lte("data_vencimento", em3)
+          .order("data_vencimento", { ascending: true })
+          .limit(10);
+        for (const f of (fatsCli ?? []) as Array<{
+          id_fatura: string;
+          competencia: string;
+          data_vencimento: string;
+          valor: number;
+          status: string;
+        }>) {
+          const atrasada =
+            f.status === "ATRASADA" || f.data_vencimento < hoje;
+          const dataBr = new Date(
+            f.data_vencimento + "T12:00"
+          ).toLocaleDateString("pt-BR");
+          const valor = Number(f.valor ?? 0).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          });
+          items.push({
+            id: `fat-${f.id_fatura}`,
+            tipo: "fatura",
+            titulo: `Fatura ${f.competencia}`,
+            subtitulo: `${valor} — ${atrasada ? "venceu" : "vence"} ${dataBr}`,
+            href: `/portal/financeiro`,
+            data: f.data_vencimento,
+            prioridade: atrasada ? "alta" : "media",
+          });
+        }
       }
 
       // 2) Documentos recebidos do portal nas últimas 24h (só equipe)

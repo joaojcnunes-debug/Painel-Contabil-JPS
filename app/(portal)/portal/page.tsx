@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarCheck, FileText, Receipt, ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PendenciasCliente } from "@/components/clientes/PendenciasCliente";
 import {
   getServerSupabase,
   getUsuarioPerfil,
@@ -93,6 +94,10 @@ export default async function PortalInicio() {
           tone="red"
           href="/portal/financeiro"
         />
+      </div>
+
+      <div className="mb-6">
+        <PendenciasCliente idCliente={idCliente} mode="cliente" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

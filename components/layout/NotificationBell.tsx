@@ -39,7 +39,10 @@ function formatRelativo(iso: string) {
 
 export function NotificationBell() {
   const user = useUserStore((s) => s.user);
-  const { data: items = [], isLoading } = useNotifications(user?.perfil);
+  const { data: items = [], isLoading } = useNotifications(
+    user?.perfil,
+    user?.id_cliente
+  );
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
