@@ -27,8 +27,9 @@ import {
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { formatBRL, formatDate } from "@/lib/utils";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Wand2 } from "lucide-react";
 import type { BancoMovimento, Lancamento } from "@/lib/supabase/types";
+import { melhorCandidato, type MatchResult } from "@/lib/conciliacao-match";
 
 const ImportarExtratoModal = dynamic(
   () =>
@@ -87,28 +88,14 @@ export default function ConciliacaoPage() {
     return m;
   }, [lancsLivres]);
 
-  // Pra um movimento, retorna sugestão se houver candidato dentro de ±7 dias
-  function sugerirCandidato(
-    mov: BancoMovimento
-  ): CandidatoLancamento | null {
+  // Pra um movimento, retorna o melhor candidato com score/nível de confiança.
+  function sugerirCandidato(mov: BancoMovimento): MatchResult | null {
     const tipo: "RECEITA" | "DESPESA" =
       Number(mov.valor) >= 0 ? "RECEITA" : "DESPESA";
     const key = `${tipo}::${Math.abs(Number(mov.valor)).toFixed(2)}`;
     const candidatos = indexLanc.get(key) ?? [];
     if (candidatos.length === 0) return null;
-    const dataMov = new Date(mov.data_movimento + "T12:00").getTime();
-    // Mais próximo no tempo, dentro de ±7 dias
-    let melhor: CandidatoLancamento | null = null;
-    let melhorDelta = Infinity;
-    for (const c of candidatos) {
-      const dataLanc = new Date(c.data_lancamento + "T12:00").getTime();
-      const delta = Math.abs(dataMov - dataLanc);
-      if (delta <= 7 * 86400000 && delta < melhorDelta) {
-        melhor = c;
-        melhorDelta = delta;
-      }
-    }
-    return melhor;
+    return melhorCandidato(mov, candidatos);
   }
 
   const [importarOpen, setImportarOpen] = useState(false);
@@ -136,6 +123,25 @@ export default function ConciliacaoPage() {
     }
     return { creditos, debitos };
   }, [movimentos]);
+
+  // Pré-calcula sugestões dos pendentes (só roda em "pendentes") pra:
+  //   1) Mostrar contador "Auto-conciliar (N)" no header
+  //   2) Reutilizar o resultado por linha (evita recomputar)
+  const sugestoes = useMemo(() => {
+    if (estado !== "pendentes") return new Map<string, MatchResult>();
+    const m = new Map<string, MatchResult>();
+    for (const mov of movimentos) {
+      const r = sugerirCandidato(mov);
+      if (r) m.set(mov.id_movimento, r);
+    }
+    return m;
+  }, [estado, movimentos, indexLanc]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const qtdAutoAlta = useMemo(
+    () =>
+      [...sugestoes.values()].filter((r) => r.level === "alto").length,
+    [sugestoes]
+  );
 
   // Ações
   const ignorar = useMutation({
@@ -182,6 +188,52 @@ export default function ConciliacaoPage() {
       qc.invalidateQueries({ queryKey: ["banco-movimentos"] });
       qc.invalidateQueries({ queryKey: ["lancamentos-livres"] });
       toast.success("Vinculado");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const autoConciliar = useMutation({
+    mutationFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const altas: Array<{ id_movimento: string; id_lancamento: string }> = [];
+      for (const mov of movimentos) {
+        const r = sugestoes.get(mov.id_movimento);
+        if (r && r.level === "alto") {
+          altas.push({
+            id_movimento: mov.id_movimento,
+            id_lancamento: r.candidato.id_lancamento,
+          });
+        }
+      }
+      // Garante que cada lançamento só seja usado 1x neste batch
+      const usados = new Set<string>();
+      let ok = 0;
+      for (const { id_movimento, id_lancamento } of altas) {
+        if (usados.has(id_lancamento)) continue;
+        const { error } = await supabase
+          .from("banco_movimentos")
+          .update({
+            conciliado: true,
+            id_lancamento,
+            ignorado: false,
+            updated_at: new Date().toISOString(),
+          } as never)
+          .eq("id_movimento", id_movimento);
+        if (!error) {
+          usados.add(id_lancamento);
+          ok++;
+        }
+      }
+      return ok;
+    },
+    onSuccess: (ok) => {
+      qc.invalidateQueries({ queryKey: ["banco-movimentos"] });
+      qc.invalidateQueries({ queryKey: ["lancamentos-livres"] });
+      toast.success(
+        ok > 0
+          ? `${ok} movimento(s) conciliado(s) automaticamente`
+          : "Nenhum movimento com confiança alta pra auto-conciliar"
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -276,12 +328,30 @@ export default function ConciliacaoPage() {
         subtitle="Casa movimentos do extrato com lançamentos contábeis"
         actions={
           idCliente && (
-            <Button
-              onClick={() => setImportarOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Upload size={16} /> Importar extrato
-            </Button>
+            <div className="flex items-center gap-2">
+              {estado === "pendentes" && qtdAutoAlta > 0 && (
+                <Button
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `Conciliar automaticamente ${qtdAutoAlta} movimento(s) com confiança alta?`
+                      )
+                    )
+                      autoConciliar.mutate();
+                  }}
+                  disabled={autoConciliar.isPending}
+                  className="flex items-center gap-2 bg-gold hover:bg-amber-700"
+                >
+                  <Wand2 size={16} /> Auto-conciliar ({qtdAutoAlta})
+                </Button>
+              )}
+              <Button
+                onClick={() => setImportarOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <Upload size={16} /> Importar extrato
+              </Button>
+            </div>
           )
         }
       />
@@ -386,7 +456,9 @@ export default function ConciliacaoPage() {
                 )}
                 {movimentos.map((m) => {
                   const sugestao =
-                    estado === "pendentes" ? sugerirCandidato(m) : null;
+                    estado === "pendentes"
+                      ? sugestoes.get(m.id_movimento) ?? null
+                      : null;
                   return (
                   <tr key={m.id_movimento} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
@@ -400,12 +472,35 @@ export default function ConciliacaoPage() {
                         </div>
                       )}
                       {sugestao && (
-                        <div className="mt-1 inline-flex items-center gap-1.5 text-xs bg-gold/10 text-amber-800 rounded px-2 py-1 border border-gold/20">
-                          <Sparkles size={11} className="text-gold flex-shrink-0" />
+                        <div
+                          className={
+                            sugestao.level === "alto"
+                              ? "mt-1 inline-flex items-center gap-1.5 text-xs bg-verde-light text-verde-dark rounded px-2 py-1 border border-verde-primary/30"
+                              : "mt-1 inline-flex items-center gap-1.5 text-xs bg-gold/10 text-amber-800 rounded px-2 py-1 border border-gold/20"
+                          }
+                          title={`Confiança: ${sugestao.score}% · ${sugestao.deltaDias} dia(s) de diferença`}
+                        >
+                          <Sparkles
+                            size={11}
+                            className={
+                              sugestao.level === "alto"
+                                ? "text-verde-primary flex-shrink-0"
+                                : "text-gold flex-shrink-0"
+                            }
+                          />
+                          <span
+                            className={
+                              sugestao.level === "alto"
+                                ? "px-1.5 py-0.5 rounded bg-verde-primary text-white text-[9px] font-bold uppercase"
+                                : "px-1.5 py-0.5 rounded bg-gold text-white text-[9px] font-bold uppercase"
+                            }
+                          >
+                            {sugestao.level === "alto" ? "Alta" : "Média"}
+                          </span>
                           <span className="truncate">
-                            Sugestão: <strong>{sugestao.descricao}</strong>{" "}
+                            <strong>{sugestao.candidato.descricao}</strong>{" "}
                             <span className="text-gray-500">
-                              ({formatDate(sugestao.data_lancamento)})
+                              ({formatDate(sugestao.candidato.data_lancamento)})
                             </span>
                           </span>
                           <button
@@ -413,11 +508,15 @@ export default function ConciliacaoPage() {
                             onClick={() =>
                               vincularRapido.mutate({
                                 mov: m,
-                                idLancamento: sugestao.id_lancamento,
+                                idLancamento: sugestao.candidato.id_lancamento,
                               })
                             }
                             disabled={vincularRapido.isPending}
-                            className="ml-1 px-2 py-0.5 rounded bg-gold text-white text-[10px] font-semibold hover:bg-amber-700"
+                            className={
+                              sugestao.level === "alto"
+                                ? "ml-1 px-2 py-0.5 rounded bg-verde-primary text-white text-[10px] font-semibold hover:bg-verde-accent"
+                                : "ml-1 px-2 py-0.5 rounded bg-gold text-white text-[10px] font-semibold hover:bg-amber-700"
+                            }
                           >
                             Aceitar
                           </button>
