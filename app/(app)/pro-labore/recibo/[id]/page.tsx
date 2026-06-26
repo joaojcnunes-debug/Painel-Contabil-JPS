@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { getConfiguracoes } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import type {
   Cliente,
@@ -29,15 +30,14 @@ export default async function ReciboProLaborePage({
     set: (name, value, options) => cookieStore.set(name, value, options),
   });
 
-  const [{ data: pagData, error: errPag }, { data: cfgData }] =
-    await Promise.all([
-      supabase
-        .from("pro_labore_pagamentos")
-        .select("*, clientes(*)")
-        .eq("id_pagamento", id)
-        .single(),
-      supabase.from("configuracoes").select("*").eq("id", 1).maybeSingle(),
-    ]);
+  const [{ data: pagData, error: errPag }, cfgData] = await Promise.all([
+    supabase
+      .from("pro_labore_pagamentos")
+      .select("*, clientes(*)")
+      .eq("id_pagamento", id)
+      .single(),
+    getConfiguracoes(),
+  ]);
 
   if (errPag || !pagData) notFound();
   const pag = pagData as unknown as PagExp;

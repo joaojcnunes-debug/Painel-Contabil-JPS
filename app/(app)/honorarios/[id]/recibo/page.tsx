@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { getConfiguracoes } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import type {
   Cliente,
@@ -31,15 +32,14 @@ export default async function ReciboPage({
     set: (name, value, options) => cookieStore.set(name, value, options),
   });
 
-  const [{ data: fatData, error: errFat }, { data: cfgData }] =
-    await Promise.all([
-      supabase
-        .from("faturas")
-        .select("*, clientes(*)")
-        .eq("id_fatura", id)
-        .single(),
-      supabase.from("configuracoes").select("*").eq("id", 1).maybeSingle(),
-    ]);
+  const [{ data: fatData, error: errFat }, cfgData] = await Promise.all([
+    supabase
+      .from("faturas")
+      .select("*, clientes(*)")
+      .eq("id_fatura", id)
+      .single(),
+    getConfiguracoes(),
+  ]);
 
   if (errFat || !fatData) notFound();
   const fatura = fatData as unknown as FatExp;

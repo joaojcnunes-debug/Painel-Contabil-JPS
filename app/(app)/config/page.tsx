@@ -22,6 +22,7 @@ import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { LogoUpload } from "@/components/config/LogoUpload";
 import { useUserStore } from "@/lib/store";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { revalidarConfiguracoesCache } from "./actions";
 
 export default function ConfigPage() {
   const user = useUserStore((s) => s.user);
@@ -171,8 +172,10 @@ export default function ConfigPage() {
         .eq("id", 1);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["configuracao"] });
+      // Invalida o cache server-side (usado em recibos/holerites)
+      await revalidarConfiguracoesCache();
       toast.success("Configurações salvas");
     },
     onError: (e: Error) => toast.error(e.message),

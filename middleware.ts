@@ -1,53 +1,41 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+
+// Middleware "leve": só checa presença do cookie de sessão Supabase.
+// A validação real do JWT é feita nos layouts via getAuthUser() (com React.cache),
+// que invalida e redireciona se o cookie tiver expirado.
+//
+// Por que não chamar supabase.auth.getUser() aqui?
+// - getUser() faz roundtrip pro Auth server (300-500ms) em TODA request
+// - Multiplica latency em produção (Vercel edge → Supabase US)
+// - Layout já faz auth check sem o custo extra
+//
+// Trade-off: cookie órfão (não-mais-válido) passa pelo middleware, mas
+// é bloqueado no layout e redirecionado pra /login. Aceito.
 
 const PUBLIC_PATHS = ["/login", "/esqueci-senha", "/redefinir-senha"];
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    if (pathname !== "/login") {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      return NextResponse.redirect(loginUrl);
-    }
-    return NextResponse.next();
-  }
+  // Heurística: cookie do Supabase auth tem nome `sb-<project-ref>-auth-token`
+  // (ou com sufixos `.0`/`.1` quando é grande e foi chunked). Se nenhum
+  // existir, claramente não há sessão.
+  const hasSessionCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
 
-  const response = NextResponse.next({ request });
-
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookies) {
-        for (const { name, value, options } of cookies) {
-          response.cookies.set(name, value, options);
-        }
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!hasSessionCookie) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

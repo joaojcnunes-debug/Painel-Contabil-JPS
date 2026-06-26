@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { getConfiguracoes } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import { TIPO_FUNC_LABEL } from "@/lib/folha-pagamento";
 import type {
@@ -28,7 +29,7 @@ export default async function HoleritePage({
     { data: folhaData, error: errFolha },
     { data: itemData, error: errItem },
     { data: funcData },
-    { data: cfgData },
+    cfgData,
   ] = await Promise.all([
     supabase
       .from("folhas_pagamento")
@@ -46,7 +47,7 @@ export default async function HoleritePage({
       .select("*")
       .eq("id_funcionario", idFunc)
       .single(),
-    supabase.from("configuracoes").select("*").eq("id", 1).maybeSingle(),
+    getConfiguracoes(),
   ]);
 
   if (errFolha || !folhaData || errItem || !itemData) notFound();

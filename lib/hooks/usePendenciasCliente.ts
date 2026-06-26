@@ -25,7 +25,7 @@ export function usePendenciasCliente(idCliente: string | undefined) {
   return useQuery({
     queryKey: ["pendencias-cliente", idCliente],
     enabled: !!idCliente,
-    refetchInterval: 2 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000, // 5 min (era 2 min — agressivo)
     queryFn: async () => {
       if (!idCliente) return [];
       const supabase = createSupabaseBrowserClient();

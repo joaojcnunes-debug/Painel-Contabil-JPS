@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { getConfiguracoes } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import type {
   Cliente,
@@ -23,15 +24,14 @@ export default async function ReciboFeriasPage({
     set: (name, value, options) => cookieStore.set(name, value, options),
   });
 
-  const [{ data: ferData, error: errFer }, { data: cfgData }] =
-    await Promise.all([
-      supabase
-        .from("ferias")
-        .select("*, clientes(*)")
-        .eq("id_ferias", id)
-        .single(),
-      supabase.from("configuracoes").select("*").eq("id", 1).maybeSingle(),
-    ]);
+  const [{ data: ferData, error: errFer }, cfgData] = await Promise.all([
+    supabase
+      .from("ferias")
+      .select("*, clientes(*)")
+      .eq("id_ferias", id)
+      .single(),
+    getConfiguracoes(),
+  ]);
 
   if (errFer || !ferData) notFound();
   const fer = ferData as unknown as FerExp;

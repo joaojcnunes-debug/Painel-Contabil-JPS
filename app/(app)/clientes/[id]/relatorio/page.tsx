@@ -6,7 +6,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { getServerSupabase } from "@/lib/supabase/server-cache";
+import { getServerSupabase, getConfiguracoes } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import type {
   Cliente,
@@ -81,9 +81,9 @@ export default async function RelatorioClientePage({
 
   const supabase = await getServerSupabase();
 
-  const [{ data: clienteData }, { data: cfgData }] = await Promise.all([
+  const [{ data: clienteData }, cfgData] = await Promise.all([
     supabase.from("clientes").select("*").eq("id_cliente", id).single(),
-    supabase.from("configuracoes").select("*").eq("id", 1).maybeSingle(),
+    getConfiguracoes(),
   ]);
   if (!clienteData) notFound();
   const cliente = clienteData as Cliente;

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
+import { getConfiguracoes } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatCPF, formatDate } from "@/lib/utils";
 import type {
   Cliente,
@@ -23,15 +24,14 @@ export default async function ReciboDecimoPage({
     set: (name, value, options) => cookieStore.set(name, value, options),
   });
 
-  const [{ data: decData, error: errDec }, { data: cfgData }] =
-    await Promise.all([
-      supabase
-        .from("decimos_terceiros")
-        .select("*, clientes(*)")
-        .eq("id_decimo", id)
-        .single(),
-      supabase.from("configuracoes").select("*").eq("id", 1).maybeSingle(),
-    ]);
+  const [{ data: decData, error: errDec }, cfgData] = await Promise.all([
+    supabase
+      .from("decimos_terceiros")
+      .select("*, clientes(*)")
+      .eq("id_decimo", id)
+      .single(),
+    getConfiguracoes(),
+  ]);
 
   if (errDec || !decData) notFound();
   const dec = decData as unknown as DecExp;

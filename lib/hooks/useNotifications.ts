@@ -36,7 +36,7 @@ export function useNotifications(
   return useQuery({
     queryKey: ["notifications", perfil ?? "anon", idCliente ?? ""],
     enabled: !!perfil && (ehEquipe || ehCliente),
-    refetchInterval: 60_000, // poll cada 1 min
+    refetchInterval: 5 * 60_000, // poll cada 5 min (era 1 min — muito agressivo)
     queryFn: async () => {
       const supabase = createSupabaseBrowserClient();
       const items: NotificationItem[] = [];
@@ -292,6 +292,6 @@ export function useNotifications(
 
       return items.slice(0, 20);
     },
-    staleTime: 30_000,
+    staleTime: 2 * 60_000,
   });
 }
