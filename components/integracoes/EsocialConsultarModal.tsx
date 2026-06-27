@@ -38,27 +38,19 @@ type RespostaErro = {
   erro: string;
 };
 
-// Operação atual: ConsultaIdentificadoresEventosEmpregador (sem CPF).
-// Aceita apenas eventos NÃO-periódicos do empregador. Eventos periódicos
-// (S-1200/S-1210) e do trabalhador (S-2299, S-2210/2220/2240 detalhados)
-// precisam de operações diferentes — Tabela ou Trabalhador — fora do escopo
-// desta Fase 1.
+// Operação atual: ConsultaIdentificadoresEventosEmpregador.
+// Schema exige perApur (YYYY-MM) e aceita apenas eventos PERIÓDICOS do
+// empregador. Servidor real confirmou: S-1298, S-1299 funcionam.
+// Eventos não-periódicos (S-2200, S-2300), tabela (S-1010, S-1020) e
+// trabalhador (S-1200) precisam de outras operações em versões futuras.
 const TIPOS_EVENTO = [
-  { id: "S-2200", label: "S-2200 — Admissão" },
-  { id: "S-2300", label: "S-2300 — TSV início" },
   { id: "S-1299", label: "S-1299 — Fechamento eventos periódicos" },
   { id: "S-1298", label: "S-1298 — Reabertura eventos periódicos" },
 ];
 
-function primeiroDiaMesCorrente(): string {
+function competenciaAtual(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function ultimoDiaMesCorrente(): string {
-  const d = new Date();
-  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export function EsocialConsultarModal({
@@ -69,9 +61,8 @@ export function EsocialConsultarModal({
 }: Props) {
   const [ambiente, setAmbiente] = useState<1 | 2>(2);
   const [senha, setSenha] = useState("");
-  const [tpEvt, setTpEvt] = useState("S-2200");
-  const [dtIni, setDtIni] = useState(primeiroDiaMesCorrente());
-  const [dtFim, setDtFim] = useState(ultimoDiaMesCorrente());
+  const [tpEvt, setTpEvt] = useState("S-1299");
+  const [perApur, setPerApur] = useState(competenciaAtual());
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState<RespostaOk | null>(null);
@@ -95,8 +86,7 @@ export function EsocialConsultarModal({
           ambiente,
           senha,
           tpEvt,
-          dtIni,
-          dtFim,
+          perApur,
         }),
       });
       const data = await res.json();
@@ -144,10 +134,11 @@ export function EsocialConsultarModal({
           <div>
             Conecta no webservice oficial do eSocial via mTLS com o certificado
             A1. Esta operação (<code>ConsultaIdentificadoresEventosEmpregador</code>)
-            lista apenas eventos <strong>não-periódicos</strong> do empregador
-            no período (S-2200, S-2300, S-1298, S-1299). Eventos por trabalhador
-            (S-1200, S-2299) ou tabela (S-1010, S-1020) precisarão de outras
-            operações em versões futuras. Comece em <strong>Produção Restrita</strong>.
+            lista eventos <strong>periódicos do empregador</strong> (S-1298
+            reabertura, S-1299 fechamento) por competência. Eventos
+            não-periódicos (S-2200), por trabalhador (S-1200, S-2299) ou
+            tabela (S-1010, S-1020) precisarão de outras operações em versões
+            futuras. Comece em <strong>Produção Restrita</strong>.
           </div>
         </div>
 
@@ -184,21 +175,12 @@ export function EsocialConsultarModal({
                 ))}
               </select>
             </Field>
-            <Field label="Data inicial" required>
+            <Field label="Período de apuração (YYYY-MM)" required>
               <input
-                type="date"
+                type="month"
                 className={inputClass}
-                value={dtIni}
-                onChange={(e) => setDtIni(e.target.value)}
-                disabled={carregando}
-              />
-            </Field>
-            <Field label="Data final" required>
-              <input
-                type="date"
-                className={inputClass}
-                value={dtFim}
-                onChange={(e) => setDtFim(e.target.value)}
+                value={perApur}
+                onChange={(e) => setPerApur(e.target.value)}
                 disabled={carregando}
               />
             </Field>
@@ -259,8 +241,7 @@ export function EsocialConsultarModal({
                 </div>
                 <div className="text-gray-700 mt-1">
                   {resposta.total} evento(s) encontrado(s) pra{" "}
-                  <strong>{tpEvt}</strong> entre <strong>{dtIni}</strong> e{" "}
-                  <strong>{dtFim}</strong> (
+                  <strong>{tpEvt}</strong> em <strong>{perApur}</strong> (
                   {resposta.ambiente === 1 ? "Produção" : "Produção Restrita"}).
                 </div>
               </div>
