@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 import {
   AlertTriangle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   FileCode,
   Loader2,
   Lock,
@@ -105,6 +107,8 @@ export function DFeDistribuirModal({
   } | null>(null);
   const [senhaInline, setSenhaInline] = useState("");
   const [justInline, setJustInline] = useState("");
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
+  const [senhaInlineVisivel, setSenhaInlineVisivel] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -314,15 +318,25 @@ export function DFeDistribuirModal({
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
-                type="password"
-                className={`${inputClass} pl-9`}
+                type={senhaVisivel ? "text" : "password"}
+                className={`${inputClass} pl-9 pr-10`}
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                placeholder="••••••••"
+                placeholder={senhaVisivel ? "" : "••••••••"}
                 autoComplete="off"
                 autoFocus
                 disabled={carregando}
               />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setSenhaVisivel((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800"
+                title={senhaVisivel ? "Ocultar senha" : "Mostrar senha"}
+                disabled={carregando}
+              >
+                {senhaVisivel ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
             </div>
           </Field>
 
@@ -492,14 +506,25 @@ export function DFeDistribuirModal({
                 · chave …{pendenteEvento.chave.slice(-12)}
               </p>
               <Field label="Senha do certificado A1" required>
-                <input
-                  type="password"
-                  autoFocus
-                  className={inputClass}
-                  value={senhaInline}
-                  onChange={(e) => setSenhaInline(e.target.value)}
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <input
+                    type={senhaInlineVisivel ? "text" : "password"}
+                    autoFocus
+                    className={inputClass + " pr-10"}
+                    value={senhaInline}
+                    onChange={(e) => setSenhaInline(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setSenhaInlineVisivel((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800"
+                    title={senhaInlineVisivel ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {senhaInlineVisivel ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
               </Field>
               {(pendenteEvento.tipo === "210220" ||
                 pendenteEvento.tipo === "210240") && (

@@ -6,6 +6,8 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Loader2,
   Lock,
   Play,
@@ -42,6 +44,7 @@ export function SefazStatusModal({
 }: Props) {
   const [ambiente, setAmbiente] = useState<1 | 2>(2);
   const [senha, setSenha] = useState("");
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState<RespostaOk | null>(null);
   const [erro, setErro] = useState<{ erro: string; raw?: string } | null>(null);
@@ -150,15 +153,25 @@ export function SefazStatusModal({
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
-                type="password"
-                className={`${inputClass} pl-9`}
+                type={senhaVisivel ? "text" : "password"}
+                className={`${inputClass} pl-9 pr-10`}
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                placeholder="••••••••"
+                placeholder={senhaVisivel ? "" : "••••••••"}
                 autoComplete="off"
                 autoFocus
                 disabled={carregando}
               />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setSenhaVisivel((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800"
+                title={senhaVisivel ? "Ocultar senha" : "Mostrar senha"}
+                disabled={carregando}
+              >
+                {senhaVisivel ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
             </div>
           </Field>
 

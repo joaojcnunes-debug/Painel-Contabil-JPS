@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 import {
   AlertTriangle,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Loader2,
   Lock,
   Send,
@@ -62,6 +64,7 @@ export function EsocialConsultarModal({
   const [senha, setSenha] = useState("");
   const [tpEvt, setTpEvt] = useState("S-1200");
   const [perApur, setPerApur] = useState(competenciaAtual());
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState<RespostaOk | null>(null);
   const [erro, setErro] = useState<RespostaErro | null>(null);
@@ -182,14 +185,26 @@ export function EsocialConsultarModal({
               />
             </Field>
             <Field label="Senha do certificado A1" required>
-              <input
-                type="password"
-                className={inputClass}
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                autoComplete="current-password"
-                disabled={carregando}
-              />
+              <div className="relative">
+                <input
+                  type={senhaVisivel ? "text" : "password"}
+                  className={inputClass + " pr-10"}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  autoComplete="off"
+                  disabled={carregando}
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setSenhaVisivel((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-800"
+                  title={senhaVisivel ? "Ocultar senha" : "Mostrar senha"}
+                  disabled={carregando}
+                >
+                  {senhaVisivel ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
             </Field>
           </div>
 
