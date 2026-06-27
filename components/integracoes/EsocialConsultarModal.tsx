@@ -50,9 +50,15 @@ const TIPOS_EVENTO = [
   { id: "S-1298", label: "S-1298 — Reabertura eventos periódicos" },
 ];
 
-function competenciaAtual(): string {
+function primeiroDiaMesCorrente(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function ultimoDiaMesCorrente(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
 }
 
 export function EsocialConsultarModal({
@@ -64,7 +70,8 @@ export function EsocialConsultarModal({
   const [ambiente, setAmbiente] = useState<1 | 2>(2);
   const [senha, setSenha] = useState("");
   const [tpEvt, setTpEvt] = useState("S-2200");
-  const [perApur, setPerApur] = useState(competenciaAtual());
+  const [dtIni, setDtIni] = useState(primeiroDiaMesCorrente());
+  const [dtFim, setDtFim] = useState(ultimoDiaMesCorrente());
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState<RespostaOk | null>(null);
@@ -88,7 +95,8 @@ export function EsocialConsultarModal({
           ambiente,
           senha,
           tpEvt,
-          perApur,
+          dtIni,
+          dtFim,
         }),
       });
       const data = await res.json();
@@ -176,14 +184,21 @@ export function EsocialConsultarModal({
                 ))}
               </select>
             </Field>
-            <Field label="Período de apuração (YYYY-MM)" required>
+            <Field label="Data inicial" required>
               <input
-                type="text"
+                type="date"
                 className={inputClass}
-                value={perApur}
-                onChange={(e) => setPerApur(e.target.value)}
-                pattern="\d{4}-\d{2}"
-                placeholder="2026-06"
+                value={dtIni}
+                onChange={(e) => setDtIni(e.target.value)}
+                disabled={carregando}
+              />
+            </Field>
+            <Field label="Data final" required>
+              <input
+                type="date"
+                className={inputClass}
+                value={dtFim}
+                onChange={(e) => setDtFim(e.target.value)}
                 disabled={carregando}
               />
             </Field>
@@ -244,7 +259,8 @@ export function EsocialConsultarModal({
                 </div>
                 <div className="text-gray-700 mt-1">
                   {resposta.total} evento(s) encontrado(s) pra{" "}
-                  <strong>{tpEvt}</strong> em <strong>{perApur}</strong> (
+                  <strong>{tpEvt}</strong> entre <strong>{dtIni}</strong> e{" "}
+                  <strong>{dtFim}</strong> (
                   {resposta.ambiente === 1 ? "Produção" : "Produção Restrita"}).
                 </div>
               </div>

@@ -59,11 +59,12 @@ export type ConsultarIdsParams = {
   senha: string;
   cnpjEmpregador: string;     // só dígitos (raíz 8 OU completo 14 — função extrai raíz)
   ambiente: AmbienteEsocial;
-  // Filtros opcionais. Se omitir, consulta o período atual (mês corrente).
   tpEvt?: TipoEventoEsocial;
-  perApur?: string;            // YYYY-MM (eventos periódicos)
-  dtIni?: string;              // YYYY-MM-DD (eventos não-periódicos)
-  dtFim?: string;              // YYYY-MM-DD
+  // consultaEvtsEmpregador sempre exige dtIni + dtFim (formato YYYY-MM-DD).
+  // perApur (YYYY-MM) NÃO é aceito por esse schema — usar dtIni=YYYY-MM-01
+  // e dtFim=YYYY-MM-último-dia se o usuário pensar em "mês".
+  dtIni?: string;
+  dtFim?: string;
 };
 
 export type EventoIdentificado = {
@@ -112,23 +113,26 @@ function extrairKeyECert(pfxBuffer: Buffer, senha: string): {
   };
 }
 
-function monthCorrente(): string {
+function primeiroDiaMesCorrente(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-// Monta o XML eSocial de consulta (sem assinatura — operação só de leitura)
+function ultimoDiaMesCorrente(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+}
+
+// Monta o XML eSocial de consulta. Schema consultaEvtsEmpregador exige
+// tpEvt + dtIni + dtFim (datas YYYY-MM-DD), não perApur.
 function montarConsultaXml(p: ConsultarIdsParams): string {
   const raiz8 = p.cnpjEmpregador.replace(/\D/g, "").slice(0, 8);
-  const tpEvt = p.tpEvt ?? "S-1200";
-  const eventoPerApur = !p.dtIni && !p.dtFim;
-  const perApur = p.perApur ?? monthCorrente();
+  const tpEvt = p.tpEvt ?? "S-2200";
+  const dtIni = p.dtIni ?? primeiroDiaMesCorrente();
+  const dtFim = p.dtFim ?? ultimoDiaMesCorrente();
 
-  const filtro = eventoPerApur
-    ? `<consultaEvtsEmpregador><tpEvt>${tpEvt}</tpEvt><perApur>${perApur}</perApur></consultaEvtsEmpregador>`
-    : `<consultaEvtsTabela><tpEvt>${tpEvt}</tpEvt><dtIni>${p.dtIni}</dtIni><dtFim>${p.dtFim}</dtFim></consultaEvtsTabela>`;
-
-  return `<eSocial xmlns="http://www.esocial.gov.br/schema/consulta/identificadores-eventos/empregador/v1_0_0"><consultaIdentificadoresEvts><ideEmpregador><tpInsc>1</tpInsc><nrInsc>${raiz8}</nrInsc></ideEmpregador>${filtro}</consultaIdentificadoresEvts></eSocial>`;
+  return `<eSocial xmlns="http://www.esocial.gov.br/schema/consulta/identificadores-eventos/empregador/v1_0_0"><consultaIdentificadoresEvts><ideEmpregador><tpInsc>1</tpInsc><nrInsc>${raiz8}</nrInsc></ideEmpregador><consultaEvtsEmpregador><tpEvt>${tpEvt}</tpEvt><dtIni>${dtIni}</dtIni><dtFim>${dtFim}</dtFim></consultaEvtsEmpregador></consultaIdentificadoresEvts></eSocial>`;
 }
 
 function montarEnvelopeSoap(consultaXml: string): string {

@@ -25,7 +25,8 @@ type Body = {
   ambiente?: 1 | 2;
   senha?: string;
   tpEvt?: TipoEventoEsocial;
-  perApur?: string;
+  dtIni?: string;  // YYYY-MM-DD
+  dtFim?: string;  // YYYY-MM-DD
 };
 
 export async function POST(req: NextRequest) {
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erro: "JSON inválido" }, { status: 400 });
   }
 
-  const { id_cliente, ambiente, senha, tpEvt, perApur } = body;
+  const { id_cliente, ambiente, senha, tpEvt, dtIni, dtFim } = body;
   if (!id_cliente || !senha || (ambiente !== 1 && ambiente !== 2)) {
     return NextResponse.json(
       { ok: false, erro: "Parâmetros obrigatórios: id_cliente, ambiente (1|2), senha" },
@@ -136,7 +137,8 @@ export async function POST(req: NextRequest) {
     cnpjEmpregador: cnpjLimpo,
     ambiente: amb,
     tpEvt,
-    perApur,
+    dtIni,
+    dtFim,
   });
   const duracaoMs = Date.now() - inicio;
 
@@ -150,7 +152,7 @@ export async function POST(req: NextRequest) {
     usuario_email: user.email,
     status: resultado.ok ? "OK" : "ERRO",
     duracao_ms: duracaoMs,
-    request_resumo: `amb=${amb} tpEvt=${tpEvt ?? "S-1200"} per=${perApur ?? "atual"}`,
+    request_resumo: `amb=${amb} tpEvt=${tpEvt ?? "S-2200"} ${dtIni ?? "auto"}→${dtFim ?? "auto"}`,
     response_resumo: {
       cdResposta: resultado.ok ? resultado.cdResposta : resultado.cdResposta,
       descResposta: resultado.ok ? resultado.descResposta : resultado.descResposta,
