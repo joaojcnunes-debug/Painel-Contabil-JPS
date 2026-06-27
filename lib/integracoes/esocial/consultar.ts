@@ -143,10 +143,12 @@ function assinarESocial(
   privateKeyPem: string,
   certPem: string
 ): string {
+  // eSocial exige SHA-256 RSA (não SHA-1 que SEFAZ NF-e usa).
+  // Erro 142 "Elemento SignatureMethod inválido" se for SHA-1.
   const sig = new SignedXml({
     privateKey: privateKeyPem,
     publicCert: certPem,
-    signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
     canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
   });
   sig.addReference({
@@ -155,7 +157,7 @@ function assinarESocial(
       "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
       "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
     ],
-    digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
     uri: "",
     // CRUCIAL: sem isso, xml-crypto v6 adiciona Id="_0" no <eSocial> raiz
     // automaticamente, e o XSD do eSocial não aceita esse atributo
