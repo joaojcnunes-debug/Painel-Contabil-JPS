@@ -39,6 +39,16 @@ export type RespostaIntegracao = {
 };
 
 // Metadata estática de cada módulo (pra render do painel)
+export type AcaoMeta = {
+  id: string;
+  label: string;
+  descricao?: string;
+  // Se true, executar essa ação em modo REAL realmente funciona
+  // (conector plugado no lib/integracoes/core/client.ts).
+  // Se false/undefined, modo REAL retorna erro com motivo específico.
+  temReal?: boolean;
+};
+
 export type ModuloMeta = {
   id: ModuloIntegracao;
   nome: string;                          // "Receita Federal / e-CAC"
@@ -46,5 +56,5 @@ export type ModuloMeta = {
   descricao: string;
   cor: string;                           // classes Tailwind do card
   slug?: string;                         // se houver tela dedicada (/integracoes/<slug>)
-  acoes: Array<{ id: string; label: string; descricao?: string }>;
+  acoes: AcaoMeta[];
 };

@@ -17,6 +17,7 @@ export const MODULOS: ModuloMeta[] = [
         id: "consultar_cnpj_brasilapi",
         label: "Cadastro CNPJ (BrasilAPI · REAL)",
         descricao: "Situação cadastral, CNAEs, sócios, endereço — gratuito, sem certificado",
+        temReal: true,
       },
       { id: "consultar_situacao_fiscal", label: "Consultar situação fiscal" },
       { id: "consultar_pendencias", label: "Listar pendências" },
@@ -155,7 +156,12 @@ export const MODULOS: ModuloMeta[] = [
     cor: "from-gray-50 to-white border-gray-300",
     slug: "certificado-digital",
     acoes: [
-      { id: "checar_vencimentos", label: "Checar próximos vencimentos" },
+      {
+        id: "checar_vencimentos",
+        label: "Checar próximos vencimentos (REAL)",
+        descricao: "Lista certificados A1/A3 vencendo em até 60 dias — leitura direta do banco",
+        temReal: true,
+      },
     ],
   },
 ];

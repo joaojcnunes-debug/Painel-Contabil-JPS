@@ -279,14 +279,28 @@ export default function IntegracoesPage() {
                     const novo: ModoIntegracao =
                       config?.modo === "REAL" ? "SIMULADO" : "REAL";
                     if (novo === "REAL") {
-                      if (
-                        !confirm(
-                          `Trocar ${meta.curto} para MODO REAL? ` +
-                            "O modo real ainda não está implementado e " +
-                            "retornará erro. Continuar?"
-                        )
-                      )
-                        return;
+                      const acoesReais = meta.acoes.filter((a) => a.temReal);
+                      const total = meta.acoes.length;
+                      const real = acoesReais.length;
+                      let msg: string;
+                      if (real === 0) {
+                        msg =
+                          `Trocar ${meta.curto} para MODO REAL?\n\n` +
+                          `Nenhuma ação deste módulo tem implementação REAL ainda. ` +
+                          `Toda chamada vai retornar erro com motivo específico (cert A1 necessário, ` +
+                          `webservice indisponível, etc).\n\nContinuar mesmo assim?`;
+                      } else if (real < total) {
+                        const lista = acoesReais.map((a) => `• ${a.label}`).join("\n");
+                        msg =
+                          `Trocar ${meta.curto} para MODO REAL?\n\n` +
+                          `${real} de ${total} ações têm REAL disponível:\n${lista}\n\n` +
+                          `As demais retornam erro explicativo. Continuar?`;
+                      } else {
+                        msg =
+                          `Trocar ${meta.curto} para MODO REAL?\n\n` +
+                          `Todas as ${total} ações têm implementação REAL.`;
+                      }
+                      if (!confirm(msg)) return;
                     }
                     alternarModo.mutate({ modulo: meta.id, modo: novo });
                   }}

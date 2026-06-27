@@ -60,8 +60,27 @@ export function CardIntegracao({
         <BadgeModo modo={config?.modo} />
       </div>
 
-      <div className="flex items-center gap-2 mt-2 mb-3">
+      <div className="flex items-center gap-2 mt-2 mb-3 flex-wrap">
         <BadgeStatus status={config?.ultimo_status} />
+        {(() => {
+          const total = meta.acoes.length;
+          const real = meta.acoes.filter((a) => a.temReal).length;
+          if (total === 0) return null;
+          const cor =
+            real === 0
+              ? "bg-gray-100 text-gray-500"
+              : real === total
+              ? "bg-verde-light text-verde-dark"
+              : "bg-blue-50 text-blue-700";
+          return (
+            <span
+              className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded-full ${cor}`}
+              title="Quantas ações deste módulo têm implementação real (não só simulada)"
+            >
+              REAL {real}/{total}
+            </span>
+          );
+        })()}
         {config?.pendencias_count != null && config.pendencias_count > 0 && (
           <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-amber-100 text-amber-800">
             {config.pendencias_count} pendência

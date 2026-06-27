@@ -14,6 +14,7 @@ import type { RespostaIntegracao } from "./types";
 import { registrarLog } from "./logger";
 import { executarSimulado } from "../simulador";
 import { consultarCnpjBrasilApi } from "../receita-federal/real";
+import { checarVencimentosCertificados } from "../certificado-digital/real";
 
 type ExecutarParams = {
   supabase: SupabaseClient;
@@ -44,8 +45,10 @@ export async function executarIntegracao(
     } else {
       // Modo REAL — switch por (módulo, ação)
       resposta = await executarReal({
+        supabase: p.supabase,
         modulo: p.modulo,
         acao: p.acao,
+        idCliente: p.idCliente ?? null,
         cnpjCliente: p.cnpjCliente ?? null,
         params: p.params ?? {},
       });
@@ -92,8 +95,10 @@ export async function executarIntegracao(
 // Ações não cobertas caem em erro padronizado pra UI exibir.
 
 type ExecutarRealParams = {
+  supabase: SupabaseClient;
   modulo: ModuloIntegracao;
   acao: string;
+  idCliente: string | null;
   cnpjCliente: string | null;
   params: Record<string, unknown>;
 };
@@ -107,10 +112,7 @@ async function executarReal(
     modo: "REAL",
     ok: false,
     duracaoMs: 0,
-    erro: {
-      codigo: "ACAO_REAL_NAO_IMPLEMENTADA",
-      mensagem: `Ação "${p.acao}" do módulo ${p.modulo} ainda não tem implementação real. Use modo SIMULADO ou aguarde a próxima versão.`,
-    },
+    erro: motivoNaoReal(p.modulo, p.acao),
   };
 
   switch (p.modulo) {
@@ -120,9 +122,72 @@ async function executarReal(
       }
       return naoImplementado;
 
-    // Outros módulos ainda só em SIMULADO. Conforme implementarmos
-    // (Distribuição DFe SEFAZ, FGTS Digital WS, etc.) plugamos aqui.
+    case "CERTIFICADO_DIGITAL":
+      if (p.acao === "checar_vencimentos") {
+        return checarVencimentosCertificados(p.supabase, p.idCliente);
+      }
+      return naoImplementado;
+
     default:
       return naoImplementado;
   }
+}
+
+// Mensagem específica por (módulo, ação) explicando POR QUE não tem REAL,
+// em vez do genérico "ainda não implementado". Ajuda o usuário a entender
+// se é falta de webservice público, se requer cert A1 via fluxo dedicado,
+// ou se vai chegar em alguma versão futura.
+function motivoNaoReal(
+  modulo: ModuloIntegracao,
+  acao: string
+): { codigo: string; mensagem: string } {
+  // Ações de NOTAS_FISCAIS têm fluxo dedicado via /integracoes/notas-fiscais
+  // (upload de cert A1 + senha por chamada, não persistidos)
+  if (modulo === "NOTAS_FISCAIS") {
+    return {
+      codigo: "USE_FLUXO_DEDICADO",
+      mensagem:
+        "Esta ação requer Certificado A1 + senha. Use o fluxo dedicado em /integracoes/notas-fiscais (Distribuição DFe, Status SEFAZ, Manifestação).",
+    };
+  }
+
+  // Webservices que existem mas não foram implementados ainda
+  const exigeCert = new Set<ModuloIntegracao>([
+    "ESOCIAL",
+    "EFD_REINF",
+    "FGTS_DIGITAL",
+  ]);
+  if (exigeCert.has(modulo)) {
+    return {
+      codigo: "REQUER_CERT_A1",
+      mensagem: `Ação "${acao}" requer chamada com Certificado A1 + assinatura XMLDSig. Implementação real planejada, ainda não disponível.`,
+    };
+  }
+
+  // Sem API pública gratuita
+  const semApiPublica = new Set<ModuloIntegracao>([
+    "SIMPLES_NACIONAL",
+    "PREFEITURAS",
+    "REDESIM",
+    "SPED",
+  ]);
+  if (semApiPublica.has(modulo)) {
+    return {
+      codigo: "SEM_API_PUBLICA",
+      mensagem: `Não há webservice público gratuito pra "${acao}". Alternativas: scraping (RPA), serviços pagos (Migrate/Conexa) ou processo manual. Use modo SIMULADO por enquanto.`,
+    };
+  }
+
+  // RECEITA_FEDERAL outras ações (pendências, DCTFWeb, etc) — requer e-CAC
+  if (modulo === "RECEITA_FEDERAL") {
+    return {
+      codigo: "REQUER_ECAC",
+      mensagem: `"${acao}" requer login no e-CAC com Certificado Digital. e-CAC não tem API REST — só via sessão manual (ver /sessoes-ecac) ou RPA.`,
+    };
+  }
+
+  return {
+    codigo: "ACAO_REAL_NAO_IMPLEMENTADA",
+    mensagem: `Ação "${acao}" do módulo ${modulo} ainda não tem implementação real. Use modo SIMULADO.`,
+  };
 }
