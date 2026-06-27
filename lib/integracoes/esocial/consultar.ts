@@ -28,9 +28,12 @@ const ENDPOINTS_CONSULTA_IDS: Record<AmbienteEsocial, string> = {
   2: "https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/dwlcirurgico/WsConsultarIdentificadoresEventos.svc",
 };
 
-// SOAP 1.2 do eSocial exige o action dentro do Content-Type, não em header separado.
+// SOAPAction esperado pelo WCF do eSocial. O nome da operação tem que bater
+// EXATAMENTE com o body (ConsultarIdentificadoresEventosEmpregador, com
+// sufixo Empregador). Genérico "ConsultarIdentificadoresEventos" retorna
+// ActionNotSupported / ContractFilter mismatch.
 const SOAP_ACTION_CONSULTAR =
-  "http://www.esocial.gov.br/servicos/empregador/consulta/identificadores-eventos/v1_0_0/ServicoConsultarIdentificadoresEventos/ConsultarIdentificadoresEventos";
+  "http://www.esocial.gov.br/servicos/empregador/consulta/identificadores-eventos/v1_0_0/ServicoConsultarIdentificadoresEventos/ConsultarIdentificadoresEventosEmpregador";
 
 // Tipos de evento aceitos no eSocial (subset comum)
 export type TipoEventoEsocial =
