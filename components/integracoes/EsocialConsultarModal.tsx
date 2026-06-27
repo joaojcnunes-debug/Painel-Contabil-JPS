@@ -38,15 +38,16 @@ type RespostaErro = {
   erro: string;
 };
 
+// Operação atual: ConsultaIdentificadoresEventosEmpregador (sem CPF).
+// Aceita apenas eventos NÃO-periódicos do empregador. Eventos periódicos
+// (S-1200/S-1210) e do trabalhador (S-2299, S-2210/2220/2240 detalhados)
+// precisam de operações diferentes — Tabela ou Trabalhador — fora do escopo
+// desta Fase 1.
 const TIPOS_EVENTO = [
-  { id: "S-1200", label: "S-1200 — Remunerações trabalhador" },
-  { id: "S-1210", label: "S-1210 — Pagamentos" },
-  { id: "S-1299", label: "S-1299 — Fechamento eventos periódicos" },
   { id: "S-2200", label: "S-2200 — Admissão" },
-  { id: "S-2299", label: "S-2299 — Desligamento" },
-  { id: "S-2210", label: "S-2210 — CAT (acidente)" },
-  { id: "S-2220", label: "S-2220 — ASO" },
-  { id: "S-2240", label: "S-2240 — Riscos" },
+  { id: "S-2300", label: "S-2300 — TSV início" },
+  { id: "S-1299", label: "S-1299 — Fechamento eventos periódicos" },
+  { id: "S-1298", label: "S-1298 — Reabertura eventos periódicos" },
 ];
 
 function competenciaAtual(): string {
@@ -62,7 +63,7 @@ export function EsocialConsultarModal({
 }: Props) {
   const [ambiente, setAmbiente] = useState<1 | 2>(2);
   const [senha, setSenha] = useState("");
-  const [tpEvt, setTpEvt] = useState("S-1200");
+  const [tpEvt, setTpEvt] = useState("S-2200");
   const [perApur, setPerApur] = useState(competenciaAtual());
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
@@ -134,9 +135,11 @@ export function EsocialConsultarModal({
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
           <div>
             Conecta no webservice oficial do eSocial via mTLS com o certificado
-            A1 cadastrado. Esta operação <strong>não envia</strong> nada — só
-            lista eventos do empregador no período. Comece em{" "}
-            <strong>Produção Restrita</strong> pra validar antes da Produção.
+            A1. Esta operação (<code>ConsultaIdentificadoresEventosEmpregador</code>)
+            lista apenas eventos <strong>não-periódicos</strong> do empregador
+            no período (S-2200, S-2300, S-1298, S-1299). Eventos por trabalhador
+            (S-1200, S-2299) ou tabela (S-1010, S-1020) precisarão de outras
+            operações em versões futuras. Comece em <strong>Produção Restrita</strong>.
           </div>
         </div>
 
