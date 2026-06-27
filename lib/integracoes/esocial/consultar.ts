@@ -17,6 +17,7 @@
 
 import forge from "node-forge";
 import { XMLParser } from "fast-xml-parser";
+import { SignedXml } from "xml-crypto";
 
 export type AmbienteEsocial = 1 | 2; // 1=Produção, 2=Produção Restrita (homologação)
 
@@ -137,6 +138,38 @@ function montarEnvelopeSoap(consultaXml: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1="http://www.esocial.gov.br/servicos/empregador/consulta/identificadores-eventos/v1_0_0"><soap:Header/><soap:Body><v1:ConsultarIdentificadoresEventosEmpregador><v1:consultaEventosEmpregador>${consultaXml}</v1:consultaEventosEmpregador></v1:ConsultarIdentificadoresEventosEmpregador></soap:Body></soap:Envelope>`;
 }
 
+// Assina o elemento <eSocial> raiz com XMLDSig (URI vazia = documento inteiro).
+// O eSocial exige assinatura mesmo em operações de só consulta — sem ela
+// o servidor retorna 417 "List of possible elements expected: 'Signature'".
+function assinarESocial(
+  xml: string,
+  privateKeyPem: string,
+  certPem: string
+): string {
+  const sig = new SignedXml({
+    privateKey: privateKeyPem,
+    publicCert: certPem,
+    signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+  });
+  sig.addReference({
+    xpath: "//*[local-name(.)='eSocial']",
+    transforms: [
+      "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+      "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+    ],
+    digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    uri: "",
+  });
+  sig.computeSignature(xml, {
+    location: {
+      reference: "//*[local-name(.)='eSocial']",
+      action: "append",
+    },
+  });
+  return sig.getSignedXml();
+}
+
 export async function consultarIdentificadoresEsocial(
   p: ConsultarIdsParams
 ): Promise<ConsultarIdsOk | ConsultarIdsErro> {
@@ -153,7 +186,16 @@ export async function consultarIdentificadoresEsocial(
     };
   }
 
-  const consultaXml = montarConsultaXml(p);
+  const consultaXmlUnsigned = montarConsultaXml(p);
+  let consultaXml: string;
+  try {
+    consultaXml = assinarESocial(consultaXmlUnsigned, privateKeyPem, certPem);
+  } catch (e) {
+    return {
+      ok: false,
+      erro: `Falha ao assinar XML: ${(e as Error).message}`,
+    };
+  }
   const soapEnvelope = montarEnvelopeSoap(consultaXml);
   const endpoint = ENDPOINTS_CONSULTA_IDS[p.ambiente];
 
