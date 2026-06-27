@@ -310,9 +310,14 @@ export async function consultarIdentificadoresEsocial(
     (status?.descResposta as string | undefined) ?? ""
   );
 
-  // cdResposta 201 = Consulta processada com sucesso
-  // Outros códigos: 211 = empregador sem eventos no período, 401 = erro
-  if (cdResposta !== "201" && cdResposta !== "211") {
+  // Códigos de sucesso:
+  // 201 = Consulta processada com sucesso (com eventos)
+  // 211 = Empregador sem eventos no período
+  // 406 = Não foram encontrados registros conforme os filtros (vazio também)
+  // Outros: erro (validação, schema, auth)
+  const sucessosVazios = new Set(["211", "406"]);
+  const sucessoComDados = cdResposta === "201";
+  if (!sucessoComDados && !sucessosVazios.has(cdResposta)) {
     return {
       ok: false,
       cdResposta,
