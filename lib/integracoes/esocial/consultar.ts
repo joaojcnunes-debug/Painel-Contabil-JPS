@@ -20,10 +20,17 @@ import { XMLParser } from "fast-xml-parser";
 
 export type AmbienteEsocial = 1 | 2; // 1=Produção, 2=Produção Restrita (homologação)
 
+// Endpoints corretos (jun/2026): o path é /dwlcirurgico/ (download cirúrgico),
+// não /consultaridentificadoreseventos/. Subdomínio de Produção é "download".
+// Validado contra nfephp-org/sped-esocial PR #208 e webservices.download.esocial.gov.br
 const ENDPOINTS_CONSULTA_IDS: Record<AmbienteEsocial, string> = {
-  1: "https://webservices.envio.esocial.gov.br/servicos/empregador/consultaridentificadoreseventos/WsConsultarIdentificadoresEventos.svc",
-  2: "https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/consultaridentificadoreseventos/WsConsultarIdentificadoresEventos.svc",
+  1: "https://webservices.download.esocial.gov.br/servicos/empregador/dwlcirurgico/WsConsultarIdentificadoresEventos.svc",
+  2: "https://webservices.producaorestrita.esocial.gov.br/servicos/empregador/dwlcirurgico/WsConsultarIdentificadoresEventos.svc",
 };
+
+// SOAP 1.2 do eSocial exige o action dentro do Content-Type, não em header separado.
+const SOAP_ACTION_CONSULTAR =
+  "http://www.esocial.gov.br/servicos/empregador/consulta/identificadores-eventos/v1_0_0/ServicoConsultarIdentificadoresEventos/ConsultarIdentificadoresEventos";
 
 // Tipos de evento aceitos no eSocial (subset comum)
 export type TipoEventoEsocial =
@@ -164,8 +171,9 @@ export async function consultarIdentificadoresEsocial(
           method: "POST",
           agent,
           headers: {
-            "Content-Type": "application/soap+xml; charset=utf-8",
-            SOAPAction: "",
+            // SOAP 1.2 do eSocial: action vai DENTRO do Content-Type, não em
+            // header SOAPAction separado (que é SOAP 1.1).
+            "Content-Type": `application/soap+xml; charset=utf-8; action="${SOAP_ACTION_CONSULTAR}"`,
             "Content-Length": Buffer.byteLength(soapEnvelope, "utf-8"),
           },
           timeout: 20000,

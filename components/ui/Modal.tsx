@@ -36,6 +36,14 @@ export default function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const prevFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`);
+  // Ref pra onClose pra evitar que callback inline do parent recrie a função
+  // a cada render e dispare o useEffect que reseta o foco do input de senha.
+  // Bug identificado: usuário digitava senha e perdia o foco a cada keystroke
+  // porque o parent re-renderizava e mudava a referência de onClose.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (open) {
@@ -54,7 +62,7 @@ export default function Modal({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -80,7 +88,8 @@ export default function Modal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
