@@ -73,16 +73,16 @@ export default function IntegracoesPage() {
       const acaoPadrao = meta.acoes[0]?.id ?? "consultar";
       const modoAtual = (config?.modo ?? "SIMULADO") as ModoIntegracao;
 
-      // Se está em REAL e o módulo tem fluxo dedicado mas nenhuma ação real
-      // no executarIntegracao genérico (caso típico: NOTAS_FISCAIS, que exige
-      // upload de cert A1 + senha por chamada), redireciona pro fluxo dedicado
-      // em vez de retornar erro.
+      // Redirect pro fluxo dedicado quando:
+      // (a) ação padrão exige fluxo dedicado (cert A1 + senha por chamada), OU
+      // (b) módulo tem slug mas nenhuma ação real (cai em erro genérico).
+      const acaoMeta = meta.acoes.find((a) => a.id === acaoPadrao);
       const temAlgumaAcaoReal = meta.acoes.some((a) => a.temReal);
-      if (
+      const redirectDedicado =
         modoAtual === "REAL" &&
         meta.slug &&
-        !temAlgumaAcaoReal
-      ) {
+        (acaoMeta?.requerFluxoDedicado || !temAlgumaAcaoReal);
+      if (redirectDedicado) {
         toast.success(
           `${meta.curto}: redirecionando para o fluxo dedicado…`
         );

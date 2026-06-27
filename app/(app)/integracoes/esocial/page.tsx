@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -15,8 +16,17 @@ import {
   Loader2,
   Play,
   Send,
+  ShieldCheck,
   Upload,
 } from "lucide-react";
+
+const EsocialConsultarModal = dynamic(
+  () =>
+    import("@/components/integracoes/EsocialConsultarModal").then((m) => ({
+      default: m.EsocialConsultarModal,
+    })),
+  { ssr: false }
+);
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -63,6 +73,7 @@ export default function ESocialPage() {
   const [aba, setAba] = useState<Aba>("pendentes");
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
+  const [consultarRealOpen, setConsultarRealOpen] = useState(false);
 
   const { data: configs = [] } = useIntegracoes(
     idCliente ? { idCliente } : undefined
@@ -166,14 +177,38 @@ export default function ESocialPage() {
         title="eSocial"
         subtitle="Eventos trabalhistas, folha e SST (S-2210 CAT / S-2220 ASO / S-2240 riscos)"
         actions={
-          <Link
-            href="/integracoes/logs?modulo=ESOCIAL"
-            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <History size={14} /> Logs
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (!idCliente) {
+                  toast.error("Selecione a empresa primeiro");
+                  return;
+                }
+                setConsultarRealOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-verde-primary text-white rounded-lg text-xs font-medium hover:bg-verde-accent"
+              title="Consulta REAL no webservice eSocial (lista IDs de eventos)"
+            >
+              <ShieldCheck size={14} /> Consultar IDs (REAL)
+            </button>
+            <Link
+              href="/integracoes/logs?modulo=ESOCIAL"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <History size={14} /> Logs
+            </Link>
+          </div>
         }
       />
+
+      {idCliente && clienteSel && (
+        <EsocialConsultarModal
+          open={consultarRealOpen}
+          onClose={() => setConsultarRealOpen(false)}
+          idCliente={idCliente}
+          nomeCliente={clienteSel.razao_social}
+        />
+      )}
 
       <div className="bg-white border border-card-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-[280px]">

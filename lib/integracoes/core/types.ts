@@ -44,9 +44,14 @@ export type AcaoMeta = {
   label: string;
   descricao?: string;
   // Se true, executar essa ação em modo REAL realmente funciona
-  // (conector plugado no lib/integracoes/core/client.ts).
+  // (conector plugado no lib/integracoes/core/client.ts OU existe fluxo
+  // dedicado em /integracoes/<slug>).
   // Se false/undefined, modo REAL retorna erro com motivo específico.
   temReal?: boolean;
+  // Se true, esta ação SÓ pode rodar via fluxo dedicado (página própria do
+  // módulo) porque exige upload de cert A1 + senha que não persistem.
+  // O botão "Consultar" no card redireciona pro slug em vez de chamar API.
+  requerFluxoDedicado?: boolean;
 };
 
 export type ModuloMeta = {

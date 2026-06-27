@@ -141,8 +141,7 @@ function motivoNaoReal(
   modulo: ModuloIntegracao,
   acao: string
 ): { codigo: string; mensagem: string } {
-  // Ações de NOTAS_FISCAIS têm fluxo dedicado via /integracoes/notas-fiscais
-  // (upload de cert A1 + senha por chamada, não persistidos)
+  // Módulos com fluxo dedicado: cert A1 + senha por chamada (não persistidos)
   if (modulo === "NOTAS_FISCAIS") {
     return {
       codigo: "USE_FLUXO_DEDICADO",
@@ -150,13 +149,16 @@ function motivoNaoReal(
         "Esta ação requer Certificado A1 + senha. Use o fluxo dedicado em /integracoes/notas-fiscais (Distribuição DFe, Status SEFAZ, Manifestação).",
     };
   }
+  if (modulo === "ESOCIAL") {
+    return {
+      codigo: "USE_FLUXO_DEDICADO",
+      mensagem:
+        "Esta ação requer Certificado A1 + senha. Use o fluxo dedicado em /integracoes/esocial (Consultar IDs de eventos).",
+    };
+  }
 
   // Webservices que existem mas não foram implementados ainda
-  const exigeCert = new Set<ModuloIntegracao>([
-    "ESOCIAL",
-    "EFD_REINF",
-    "FGTS_DIGITAL",
-  ]);
+  const exigeCert = new Set<ModuloIntegracao>(["EFD_REINF", "FGTS_DIGITAL"]);
   if (exigeCert.has(modulo)) {
     return {
       codigo: "REQUER_CERT_A1",

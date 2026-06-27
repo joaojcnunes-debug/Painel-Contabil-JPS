@@ -35,6 +35,13 @@ export const MODULOS: ModuloMeta[] = [
     cor: "from-emerald-50 to-white border-emerald-200",
     slug: "esocial",
     acoes: [
+      {
+        id: "consultar_identificadores",
+        label: "Consultar IDs de eventos (REAL)",
+        descricao: "Lista IDs de eventos já enviados ao eSocial via webservice oficial. Usa cert A1 + fluxo dedicado em /integracoes/esocial",
+        temReal: true,
+        requerFluxoDedicado: true,
+      },
       { id: "listar_pendentes", label: "Listar eventos pendentes" },
       { id: "enviar_eventos", label: "Enviar lote de eventos" },
       { id: "listar_enviados", label: "Histórico de lotes enviados" },
