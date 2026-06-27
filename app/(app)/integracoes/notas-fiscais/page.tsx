@@ -214,6 +214,13 @@ export default function NotasFiscaisPage() {
         subtitle="Baixa de XMLs da SEFAZ, manifestação do destinatário, NFC-e/CT-e/MDF-e"
         actions={
           <div className="flex items-center gap-2">
+            <Link
+              href="/integracoes/notas-fiscais/recebidas"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
+              title="Listar NFs já baixadas e armazenadas no bucket"
+            >
+              <FileCode size={14} /> NFs recebidas
+            </Link>
             <button
               onClick={() => {
                 if (!idCliente) {
