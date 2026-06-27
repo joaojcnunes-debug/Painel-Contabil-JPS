@@ -32,6 +32,49 @@ type Body = {
   reset_nsu?: boolean;
 };
 
+type ResumoNfe = {
+  chave?: string;
+  numero?: string;
+  serie?: string;
+  emitente_cnpj?: string;
+  emitente_nome?: string;
+  valor?: number;
+  dh_emissao?: string;
+};
+
+// Extrai metadata mínima do XML retornado pela Distribuição DFe pra indexar
+// na tabela sem precisar reabrir o XML em todo SELECT.
+function extrairResumoNfe(xml: string): ResumoNfe {
+  const get = (tag: string) => {
+    const m = xml.match(new RegExp(`<${tag}>([^<]+)</${tag}>`));
+    return m ? m[1] : undefined;
+  };
+  let chave = get("chNFe");
+  if (!chave) {
+    const m = xml.match(/<infNFe[^>]+Id="NFe(\d{44})"/);
+    if (m) chave = m[1];
+  }
+  // emitente: dentro de <emit>...<CNPJ>...</CNPJ><xNome>...</xNome></emit>
+  let emitente_cnpj: string | undefined;
+  let emitente_nome: string | undefined;
+  const emit = xml.match(/<emit>([\s\S]*?)<\/emit>/);
+  if (emit) {
+    const cnpjM = emit[1].match(/<CNPJ>(\d+)<\/CNPJ>/);
+    const nomeM = emit[1].match(/<xNome>([^<]+)<\/xNome>/);
+    emitente_cnpj = cnpjM ? cnpjM[1] : undefined;
+    emitente_nome = nomeM ? nomeM[1] : undefined;
+  }
+  return {
+    chave,
+    numero: get("nNF"),
+    serie: get("serie"),
+    emitente_cnpj,
+    emitente_nome,
+    valor: get("vNF") ? Number(get("vNF")) : undefined,
+    dh_emissao: get("dhEmi"),
+  };
+}
+
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
   const supabase = createSupabaseServerClient({
@@ -106,6 +149,14 @@ export async function POST(req: NextRequest) {
   if (!docDest || (docDest.length !== 14 && docDest.length !== 11)) {
     return NextResponse.json(
       { ok: false, erro: "Cliente sem CNPJ ou CPF válido" },
+      { status: 400 }
+    );
+  }
+  // Rejeita CNPJ/CPF "00000000000000" (placeholder) que tecnicamente tem
+  // o tamanho certo mas não é documento real e a SEFAZ vai rejeitar com 207.
+  if (/^0+$/.test(docDest)) {
+    return NextResponse.json(
+      { ok: false, erro: "CNPJ/CPF do cliente está zerado. Edite o cadastro." },
       { status: 400 }
     );
   }
@@ -220,6 +271,61 @@ export async function POST(req: NextRequest) {
     } as never);
   }
 
+  // Persiste XMLs baixados (bucket nfe-xmls + tabela nfe_dfe_recebidas)
+  // Antes os XMLs eram só devolvidos ao frontend e perdidos no refresh.
+  let salvos = 0;
+  let saveErrors = 0;
+  if (resultado.ok && resultado.documentos.length > 0) {
+    for (const doc of resultado.documentos) {
+      try {
+        const resumo = extrairResumoNfe(doc.xml);
+        if (!resumo.chave) {
+          // doc sem chave reconhecível (provavelmente cancelamento/evento) — pula
+          continue;
+        }
+        const path = `${id_cliente}/${amb}/${resumo.chave}.xml`;
+        const { error: upErr } = await supabase.storage
+          .from("nfe-xmls")
+          .upload(path, doc.xml, {
+            contentType: "application/xml",
+            upsert: true,
+          });
+        if (upErr) {
+          saveErrors++;
+          continue;
+        }
+        // Upsert na tabela
+        const { error: dbErr } = await supabase
+          .from("nfe_dfe_recebidas")
+          .upsert(
+            {
+              chave: resumo.chave,
+              id_cliente,
+              ambiente: amb,
+              nsu: doc.nsu,
+              schema_xml: doc.schema,
+              xml_path: path,
+              emitente_cnpj: resumo.emitente_cnpj ?? null,
+              emitente_nome: resumo.emitente_nome ?? null,
+              numero: resumo.numero ?? null,
+              serie: resumo.serie ?? null,
+              valor_total: resumo.valor ?? null,
+              dh_emissao: resumo.dh_emissao ?? null,
+              updated_at: new Date().toISOString(),
+            } as never,
+            { onConflict: "chave" }
+          );
+        if (dbErr) {
+          saveErrors++;
+        } else {
+          salvos++;
+        }
+      } catch {
+        saveErrors++;
+      }
+    }
+  }
+
   // Log na tabela de integracoes_logs
   await supabase.from("integracoes_logs").insert({
     id_log: gerarId("LOG"),
@@ -236,6 +342,8 @@ export async function POST(req: NextRequest) {
       cStat: resultado.ok ? resultado.cStat : resultado.cStat,
       xMotivo: resultado.ok ? resultado.xMotivo : resultado.xMotivo,
       total_docs: resultado.ok ? resultado.documentos.length : 0,
+      salvos,
+      save_errors: saveErrors,
     },
     erro_codigo: resultado.ok ? null : resultado.cStat ?? "ERRO_GENERICO",
     erro_mensagem: resultado.ok ? null : resultado.erro,

@@ -97,6 +97,14 @@ export function DFeDistribuirModal({
   const [manifestStatus, setManifestStatus] = useState<
     Record<string, { loading?: boolean; ok?: boolean; msg?: string }>
   >({});
+  // Overlay seguro pra repedir senha (+ justificativa quando aplicável).
+  // Substitui window.prompt() que vazava em DevTools/console.
+  const [pendenteEvento, setPendenteEvento] = useState<{
+    chave: string;
+    tipo: CodigoEvento;
+  } | null>(null);
+  const [senhaInline, setSenhaInline] = useState("");
+  const [justInline, setJustInline] = useState("");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -141,36 +149,48 @@ export function DFeDistribuirModal({
   }
 
   async function manifestar(chave: string, tipo: CodigoEvento) {
-    if (!senha) {
-      // Pra manifestar precisa da senha novamente (foi limpa após o consultar).
-      // Pedir via prompt simples.
-      const novaSenha = window.prompt(
-        "Digite novamente a senha do certificado A1 pra assinar a manifestação:"
-      );
-      if (!novaSenha) return;
-      setSenha(novaSenha);
-      // chama recursivamente após setar — mas state é assíncrono, então passar direto
-      return manifestarComSenha(chave, tipo, novaSenha);
+    const exigeJust = tipo === "210220" || tipo === "210240";
+    // Se já temos senha em memória E não precisa justificativa, vai direto.
+    if (senha && !exigeJust) {
+      return manifestarComSenha(chave, tipo, senha, undefined);
     }
-    return manifestarComSenha(chave, tipo, senha);
+    // Senão, abre overlay seguro pedindo senha (e justificativa se aplicável).
+    setSenhaInline(senha); // pré-preenche se existir
+    setJustInline("");
+    setPendenteEvento({ chave, tipo });
+  }
+
+  function confirmarPendente(e: FormEvent) {
+    e.preventDefault();
+    if (!pendenteEvento) return;
+    const { chave, tipo } = pendenteEvento;
+    if (!senhaInline) {
+      toast.error("Senha do certificado obrigatória");
+      return;
+    }
+    const exigeJust = tipo === "210220" || tipo === "210240";
+    let just: string | undefined;
+    if (exigeJust) {
+      const j = justInline.trim();
+      if (j.length < 15) {
+        toast.error("Justificativa obrigatória (mín. 15 caracteres)");
+        return;
+      }
+      just = j;
+    }
+    setPendenteEvento(null);
+    setJustInline("");
+    // Não persiste senhaInline em senha do estado principal — usa só uma vez.
+    void manifestarComSenha(chave, tipo, senhaInline, just);
+    setSenhaInline("");
   }
 
   async function manifestarComSenha(
     chave: string,
     tipo: CodigoEvento,
-    senhaAtual: string
+    senhaAtual: string,
+    justificativa: string | undefined
   ) {
-    let justificativa: string | undefined;
-    if (tipo === "210220" || tipo === "210240") {
-      const just = window.prompt(
-        `Justificativa pra ${tipo === "210220" ? "Desconhecimento" : "Operação não realizada"} (mín. 15 caracteres):`
-      );
-      if (!just || just.length < 15) {
-        toast.error("Justificativa obrigatória (mín 15 caracteres)");
-        return;
-      }
-      justificativa = just;
-    }
     setManifestStatus((s) => ({ ...s, [chave]: { loading: true } }));
     try {
       const res = await fetch("/api/integracoes/manifestar-nfe", {
@@ -220,6 +240,9 @@ export function DFeDistribuirModal({
     setResetNsu(false);
     setResposta(null);
     setErro(null);
+    setPendenteEvento(null);
+    setSenhaInline("");
+    setJustInline("");
     onClose();
   }
 
@@ -438,6 +461,76 @@ export function DFeDistribuirModal({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {pendenteEvento && (
+          <div
+            className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+          >
+            <form
+              onSubmit={confirmarPendente}
+              className="bg-white rounded-xl border border-card-border shadow-xl w-full max-w-md p-5 space-y-3"
+            >
+              <div className="flex items-center gap-2 text-verde-dark">
+                <Lock size={16} />
+                <h3 className="font-serif text-sm font-semibold">
+                  Confirmar manifestação
+                </h3>
+              </div>
+              <p className="text-xs text-gray-600">
+                Evento{" "}
+                <strong>
+                  {
+                    EVENTOS_MANIFESTACAO.find(
+                      (e) => e.codigo === pendenteEvento.tipo
+                    )?.nome
+                  }
+                </strong>{" "}
+                · chave …{pendenteEvento.chave.slice(-12)}
+              </p>
+              <Field label="Senha do certificado A1" required>
+                <input
+                  type="password"
+                  autoFocus
+                  className={inputClass}
+                  value={senhaInline}
+                  onChange={(e) => setSenhaInline(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </Field>
+              {(pendenteEvento.tipo === "210220" ||
+                pendenteEvento.tipo === "210240") && (
+                <Field label="Justificativa (mín. 15 caracteres)" required>
+                  <textarea
+                    className={inputClass + " min-h-20"}
+                    value={justInline}
+                    onChange={(e) => setJustInline(e.target.value)}
+                    minLength={15}
+                    maxLength={255}
+                  />
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    {justInline.trim().length}/15 chars mínimos
+                  </div>
+                </Field>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setPendenteEvento(null);
+                    setSenhaInline("");
+                    setJustInline("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit">Confirmar</Button>
+              </div>
+            </form>
           </div>
         )}
       </div>

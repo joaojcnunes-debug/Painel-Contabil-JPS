@@ -328,9 +328,20 @@ export async function distribuirDFe(
   // Códigos comuns:
   // 137 = Nenhum documento localizado
   // 138 = Documento localizado para o destinatário
-  // 656 = Consumo indevido (muitas chamadas — aguardar)
+  // 656 = Consumo indevido (muitas chamadas — aguardar 1h antes de retry)
   // 215 = Falha de schema XML
   // 252 = Ambiente diferente
+  if (cStat === "656") {
+    return {
+      ok: false,
+      cStat,
+      xMotivo,
+      erro:
+        "SEFAZ retornou 656 (consumo indevido). Você fez chamadas demais em pouco tempo. " +
+        "Aguarde 1 hora antes de tentar de novo.",
+      raw: respostaXml.slice(0, 500),
+    };
+  }
   if (cStat !== "137" && cStat !== "138") {
     return {
       ok: false,
@@ -637,15 +648,16 @@ export async function manifestarNFe(
 
   // detEvento varia: cnchamentos 210220/240 exigem justificativa.
   const exigeJust = tpEvento === "210220" || tpEvento === "210240";
-  if (exigeJust && (!p.justificativa || p.justificativa.length < 15)) {
+  const justTrim = (p.justificativa ?? "").trim();
+  if (exigeJust && justTrim.length < 15) {
     return {
       ok: false,
       erro:
-        "Eventos 210220 e 210240 exigem justificativa com no mínimo 15 caracteres.",
+        "Eventos 210220 e 210240 exigem justificativa com no mínimo 15 caracteres (sem contar espaços).",
     };
   }
   const detEvento = exigeJust
-    ? `<detEvento versao="1.00"><descEvento>${desc}</descEvento><xJust>${p.justificativa}</xJust></detEvento>`
+    ? `<detEvento versao="1.00"><descEvento>${desc}</descEvento><xJust>${justTrim}</xJust></detEvento>`
     : `<detEvento versao="1.00"><descEvento>${desc}</descEvento></detEvento>`;
 
   // XML do evento (sem indentação)

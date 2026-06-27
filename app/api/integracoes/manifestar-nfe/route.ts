@@ -130,7 +130,25 @@ export async function POST(req: NextRequest) {
   });
   const duracaoMs = Date.now() - inicio;
 
-  // Log
+  // Persiste o evento na tabela dedicada (mesmo em erro — registro de tentativa)
+  const chaveLimpa = chave_nfe.replace(/\D/g, "");
+  await supabase.from("nfe_manifestacoes").insert({
+    id_manifestacao: gerarId("MNF"),
+    id_cliente,
+    ambiente: amb,
+    chave_nfe: chaveLimpa,
+    tipo_evento,
+    protocolo: res.ok ? res.protocolo ?? null : null,
+    c_stat: res.cStat ?? null,
+    x_motivo: res.xMotivo ?? null,
+    dh_registrado: res.ok ? res.dhRegEvento ?? null : null,
+    justificativa: justificativa ?? null,
+    ok: res.ok,
+    erro: res.ok ? null : res.erro,
+    enviado_por_email: user.email,
+  } as never);
+
+  // Log (mantido pra histórico unificado de chamadas a integrações)
   await supabase.from("integracoes_logs").insert({
     id_log: gerarId("LOG"),
     id_cliente,

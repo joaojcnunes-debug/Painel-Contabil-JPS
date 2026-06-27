@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -35,6 +36,7 @@ export default function IntegracoesPage() {
 
   const { data: clientes = [] } = useClientes();
   const qc = useQueryClient();
+  const router = useRouter();
 
   const [idCliente, setIdCliente] = useState("");
   const [executando, setExecutando] = useState<ModuloIntegracao | null>(null);
@@ -69,12 +71,30 @@ export default function IntegracoesPage() {
       const config = configPorModulo.get(modulo);
       const meta = MODULOS.find((m) => m.id === modulo)!;
       const acaoPadrao = meta.acoes[0]?.id ?? "consultar";
+      const modoAtual = (config?.modo ?? "SIMULADO") as ModoIntegracao;
+
+      // Se está em REAL e o módulo tem fluxo dedicado mas nenhuma ação real
+      // no executarIntegracao genérico (caso típico: NOTAS_FISCAIS, que exige
+      // upload de cert A1 + senha por chamada), redireciona pro fluxo dedicado
+      // em vez de retornar erro.
+      const temAlgumaAcaoReal = meta.acoes.some((a) => a.temReal);
+      if (
+        modoAtual === "REAL" &&
+        meta.slug &&
+        !temAlgumaAcaoReal
+      ) {
+        toast.success(
+          `${meta.curto}: redirecionando para o fluxo dedicado…`
+        );
+        router.push(`/integracoes/${meta.slug}`);
+        return;
+      }
 
       const resp = await executarIntegracao({
         supabase,
         modulo,
         acao: acaoPadrao,
-        modo: (config?.modo ?? "SIMULADO") as ModoIntegracao,
+        modo: modoAtual,
         idConfig: config?.id_config ?? null,
         idCliente,
         cnpjCliente: clienteSel?.cnpj ?? null,
