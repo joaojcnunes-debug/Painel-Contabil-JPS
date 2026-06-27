@@ -128,8 +128,10 @@ function montarConsultaXml(p: ConsultarIdsParams): string {
 }
 
 function montarEnvelopeSoap(consultaXml: string): string {
-  // O eSocial aceita SOAP 1.1 ou 1.2; vamos com 1.2 (igual SEFAZ NF-e)
-  return `<?xml version="1.0" encoding="UTF-8"?><soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:v1="http://www.esocial.gov.br/servicos/empregador/consulta/identificadores-eventos/v1_0_0"><soap:Header/><soap:Body><v1:ConsultarIdentificadoresEventosEmpregador><v1:consultaEventosEmpregador>${consultaXml}</v1:consultaEventosEmpregador></v1:ConsultarIdentificadoresEventosEmpregador></soap:Body></soap:Envelope>`;
+  // O endpoint dwlcirurgico do eSocial usa SOAP 1.1 (text/xml + SOAPAction
+  // em header separado). Tentar SOAP 1.2 (application/soap+xml) retorna
+  // HTTP 415 Unsupported Media Type.
+  return `<?xml version="1.0" encoding="UTF-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:v1="http://www.esocial.gov.br/servicos/empregador/consulta/identificadores-eventos/v1_0_0"><soap:Header/><soap:Body><v1:ConsultarIdentificadoresEventosEmpregador><v1:consultaEventosEmpregador>${consultaXml}</v1:consultaEventosEmpregador></v1:ConsultarIdentificadoresEventosEmpregador></soap:Body></soap:Envelope>`;
 }
 
 export async function consultarIdentificadoresEsocial(
@@ -171,9 +173,10 @@ export async function consultarIdentificadoresEsocial(
           method: "POST",
           agent,
           headers: {
-            // SOAP 1.2 do eSocial: action vai DENTRO do Content-Type, não em
-            // header SOAPAction separado (que é SOAP 1.1).
-            "Content-Type": `application/soap+xml; charset=utf-8; action="${SOAP_ACTION_CONSULTAR}"`,
+            // SOAP 1.1: text/xml + SOAPAction em header separado.
+            // (Endpoint dwlcirurgico rejeita SOAP 1.2 com HTTP 415.)
+            "Content-Type": "text/xml; charset=utf-8",
+            SOAPAction: SOAP_ACTION_CONSULTAR,
             "Content-Length": Buffer.byteLength(soapEnvelope, "utf-8"),
           },
           timeout: 20000,
