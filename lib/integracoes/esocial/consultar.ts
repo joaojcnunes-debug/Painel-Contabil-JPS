@@ -160,6 +160,10 @@ function assinarESocial(
     ],
     digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
     uri: "",
+    // CRUCIAL: sem isso, xml-crypto v6 adiciona Id="_0" no <eSocial> raiz
+    // automaticamente, e o XSD do eSocial não aceita esse atributo
+    // (retorna 417 "The 'Id' attribute is not declared").
+    isEmptyUri: true,
   });
   sig.computeSignature(xml, {
     location: {
