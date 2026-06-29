@@ -221,6 +221,13 @@ export default function NotasFiscaisPage() {
             >
               <FileCode size={14} /> NFs recebidas
             </Link>
+            <Link
+              href="/integracoes/notas-fiscais/manifestacoes"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
+              title="Histórico de manifestações enviadas (ciência, confirmação, etc)"
+            >
+              <History size={14} /> Manifestações
+            </Link>
             <button
               onClick={() => {
                 if (!idCliente) {
