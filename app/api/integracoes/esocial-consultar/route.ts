@@ -1,20 +1,29 @@
 // API Route: eSocial — Consultar Identificadores de Eventos.
 //
-// POST { id_cliente, ambiente (1|2), senha, tpEvt?, perApur? }
+// POST { id_cliente, ambiente, senha, operacao, ...filtros }
 //
-// Faz uma chamada ao webservice WsConsultarIdentificadoresEventos do eSocial
-// usando o certificado A1 do cliente. Se retornar HTTP 200 + cdResposta
-// 201/211, o webservice está acessível (status check) e a lista de eventos
-// vem populada (ou vazia, caso 211).
+// Roteia entre 4 operações conforme `operacao`:
+// - "Empregador":    perApur, tpEvt (S-1298/S-1299)
+// - "NaoPeriodicos": dtIni, dtFim, tpEvt (S-2200, S-2300, ...)
+// - "Trabalhador":   cpfTrab, perApur, tpEvt (S-1200, S-2299, ...)
+// - "Tabela":        dtIni, dtFim, tpEvt (S-1010, S-1020, ...)
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/client";
 import {
   consultarIdentificadoresEsocial,
-  type AmbienteEsocial,
   type TipoEventoEsocial,
 } from "@/lib/integracoes/esocial/consultar";
+import { consultarNaoPeriodicosEsocial } from "@/lib/integracoes/esocial/consultar-nao-periodicos";
+import { consultarTrabalhadorEsocial } from "@/lib/integracoes/esocial/consultar-trabalhador";
+import { consultarTabelaEsocial } from "@/lib/integracoes/esocial/consultar-tabela";
+import type {
+  AmbienteEsocial,
+  OperacaoConsulta,
+  RetornoConsultaErro,
+  RetornoConsultaOk,
+} from "@/lib/integracoes/esocial/_shared";
 import { gerarId } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -24,8 +33,13 @@ type Body = {
   id_cliente?: string;
   ambiente?: 1 | 2;
   senha?: string;
-  tpEvt?: TipoEventoEsocial;
-  perApur?: string;  // YYYY-MM
+  operacao?: OperacaoConsulta;
+  tpEvt?: string;
+  perApur?: string;      // Empregador, Trabalhador
+  dtIni?: string;        // NaoPeriodicos, Tabela
+  dtFim?: string;        // NaoPeriodicos, Tabela
+  cpfTrab?: string;      // Trabalhador
+  chvEvento?: string;    // Tabela (opcional)
 };
 
 export async function POST(req: NextRequest) {
@@ -59,7 +73,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, erro: "JSON inválido" }, { status: 400 });
   }
 
-  const { id_cliente, ambiente, senha, tpEvt, perApur } = body;
+  const {
+    id_cliente,
+    ambiente,
+    senha,
+    operacao = "Empregador",
+    tpEvt,
+    perApur,
+    dtIni,
+    dtFim,
+    cpfTrab,
+    chvEvento,
+  } = body;
+
   if (!id_cliente || !senha || (ambiente !== 1 && ambiente !== 2)) {
     return NextResponse.json(
       { ok: false, erro: "Parâmetros obrigatórios: id_cliente, ambiente (1|2), senha" },
@@ -91,7 +117,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Certificado A1 (mesma lógica das outras integrações SEFAZ)
+  // Certificado A1
   const { data: certs } = await supabase
     .from("certificados_digitais")
     .select("arquivo_path, titular_documento")
@@ -128,29 +154,91 @@ export async function POST(req: NextRequest) {
   }
   const pfxBuffer = Buffer.from(await pfxBlob.arrayBuffer());
 
-  // Chama eSocial
+  // Roteia pra operação correta
   const inicio = Date.now();
-  const resultado = await consultarIdentificadoresEsocial({
-    pfxBuffer,
-    senha,
-    cnpjEmpregador: cnpjLimpo,
-    ambiente: amb,
-    tpEvt,
-    perApur,
-  });
+  let resultado: RetornoConsultaOk | RetornoConsultaErro;
+
+  switch (operacao) {
+    case "NaoPeriodicos":
+      if (!tpEvt) {
+        return NextResponse.json(
+          { ok: false, erro: "tpEvt obrigatório pra NaoPeriodicos" },
+          { status: 400 }
+        );
+      }
+      resultado = await consultarNaoPeriodicosEsocial({
+        pfxBuffer,
+        senha,
+        cnpjEmpregador: cnpjLimpo,
+        ambiente: amb,
+        tpEvt: tpEvt as Parameters<typeof consultarNaoPeriodicosEsocial>[0]["tpEvt"],
+        dtIni,
+        dtFim,
+      });
+      break;
+
+    case "Trabalhador":
+      if (!tpEvt || !cpfTrab) {
+        return NextResponse.json(
+          { ok: false, erro: "tpEvt e cpfTrab obrigatórios pra Trabalhador" },
+          { status: 400 }
+        );
+      }
+      resultado = await consultarTrabalhadorEsocial({
+        pfxBuffer,
+        senha,
+        cnpjEmpregador: cnpjLimpo,
+        ambiente: amb,
+        tpEvt: tpEvt as Parameters<typeof consultarTrabalhadorEsocial>[0]["tpEvt"],
+        cpfTrab,
+        perApur,
+      });
+      break;
+
+    case "Tabela":
+      if (!tpEvt) {
+        return NextResponse.json(
+          { ok: false, erro: "tpEvt obrigatório pra Tabela" },
+          { status: 400 }
+        );
+      }
+      resultado = await consultarTabelaEsocial({
+        pfxBuffer,
+        senha,
+        cnpjEmpregador: cnpjLimpo,
+        ambiente: amb,
+        tpEvt: tpEvt as Parameters<typeof consultarTabelaEsocial>[0]["tpEvt"],
+        dtIni,
+        dtFim,
+        chvEvento,
+      });
+      break;
+
+    case "Empregador":
+    default:
+      resultado = await consultarIdentificadoresEsocial({
+        pfxBuffer,
+        senha,
+        cnpjEmpregador: cnpjLimpo,
+        ambiente: amb,
+        tpEvt: tpEvt as TipoEventoEsocial | undefined,
+        perApur,
+      });
+      break;
+  }
+
   const duracaoMs = Date.now() - inicio;
 
-  // Log
   await supabase.from("integracoes_logs").insert({
     id_log: gerarId("LOG"),
     id_cliente,
     modulo: "ESOCIAL",
-    acao: "consultar_identificadores",
+    acao: `consultar_${operacao.toLowerCase()}`,
     modo: "REAL",
     usuario_email: user.email,
     status: resultado.ok ? "OK" : "ERRO",
     duracao_ms: duracaoMs,
-    request_resumo: `amb=${amb} tpEvt=${tpEvt ?? "S-1299"} per=${perApur ?? "atual"}`,
+    request_resumo: `amb=${amb} op=${operacao} tpEvt=${tpEvt ?? "auto"}`,
     response_resumo: {
       cdResposta: resultado.ok ? resultado.cdResposta : resultado.cdResposta,
       descResposta: resultado.ok ? resultado.descResposta : resultado.descResposta,

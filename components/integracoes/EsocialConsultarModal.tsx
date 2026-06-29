@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useMemo, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import {
   AlertTriangle,
@@ -22,6 +22,8 @@ type Props = {
   nomeCliente?: string;
 };
 
+type Operacao = "Empregador" | "NaoPeriodicos" | "Trabalhador" | "Tabela";
+
 type RespostaOk = {
   ok: true;
   ambiente: 1 | 2;
@@ -38,19 +40,99 @@ type RespostaErro = {
   erro: string;
 };
 
-// Operação atual: ConsultaIdentificadoresEventosEmpregador.
-// Schema exige perApur (YYYY-MM) e aceita apenas eventos PERIÓDICOS do
-// empregador. Servidor real confirmou: S-1298, S-1299 funcionam.
-// Eventos não-periódicos (S-2200, S-2300), tabela (S-1010, S-1020) e
-// trabalhador (S-1200) precisam de outras operações em versões futuras.
-const TIPOS_EVENTO = [
-  { id: "S-1299", label: "S-1299 — Fechamento eventos periódicos" },
-  { id: "S-1298", label: "S-1298 — Reabertura eventos periódicos" },
-];
+// Configuração de cada operação: tipos aceitos + campos exigidos
+const OPERACOES: Record<
+  Operacao,
+  {
+    label: string;
+    descricao: string;
+    tipos: Array<{ id: string; label: string }>;
+    filtroData: "perApur" | "dtIniDtFim";
+    requerCpf: boolean;
+  }
+> = {
+  Empregador: {
+    label: "Empregador (periódicos)",
+    descricao: "Eventos periódicos do empregador, por competência",
+    tipos: [
+      { id: "S-1299", label: "S-1299 — Fechamento eventos periódicos" },
+      { id: "S-1298", label: "S-1298 — Reabertura eventos periódicos" },
+    ],
+    filtroData: "perApur",
+    requerCpf: false,
+  },
+  NaoPeriodicos: {
+    label: "Não-periódicos",
+    descricao: "Eventos não-periódicos do empregador, por intervalo de datas",
+    tipos: [
+      { id: "S-2190", label: "S-2190 — Admissão preliminar" },
+      { id: "S-2200", label: "S-2200 — Admissão" },
+      { id: "S-2205", label: "S-2205 — Alteração cadastral" },
+      { id: "S-2206", label: "S-2206 — Alteração contrato" },
+      { id: "S-2210", label: "S-2210 — CAT (acidente)" },
+      { id: "S-2220", label: "S-2220 — ASO" },
+      { id: "S-2230", label: "S-2230 — Afastamento" },
+      { id: "S-2240", label: "S-2240 — Riscos" },
+      { id: "S-2250", label: "S-2250 — Aviso prévio" },
+      { id: "S-2298", label: "S-2298 — Reintegração" },
+      { id: "S-2299", label: "S-2299 — Desligamento" },
+      { id: "S-2300", label: "S-2300 — TSV início" },
+      { id: "S-2306", label: "S-2306 — TSV alteração" },
+      { id: "S-2399", label: "S-2399 — TSV término" },
+    ],
+    filtroData: "dtIniDtFim",
+    requerCpf: false,
+  },
+  Trabalhador: {
+    label: "Trabalhador (precisa CPF)",
+    descricao: "Eventos periódicos de um trabalhador específico (precisa CPF)",
+    tipos: [
+      { id: "S-1200", label: "S-1200 — Remunerações" },
+      { id: "S-1202", label: "S-1202 — RPPS" },
+      { id: "S-1207", label: "S-1207 — Benefícios RPPS" },
+      { id: "S-1210", label: "S-1210 — Pagamentos" },
+      { id: "S-1260", label: "S-1260 — Aquisição produção rural PF" },
+      { id: "S-1270", label: "S-1270 — Avulsos não portuários" },
+      { id: "S-1280", label: "S-1280 — Contribuições conv. coletivas" },
+      { id: "S-1295", label: "S-1295 — Totalização recolhimento" },
+      { id: "S-2299", label: "S-2299 — Desligamento" },
+      { id: "S-2399", label: "S-2399 — TSV término" },
+    ],
+    filtroData: "perApur",
+    requerCpf: true,
+  },
+  Tabela: {
+    label: "Tabela",
+    descricao: "Tabelas (rubricas, lotações, cargos, etc) por intervalo",
+    tipos: [
+      { id: "S-1005", label: "S-1005 — Estabelecimentos / obras" },
+      { id: "S-1010", label: "S-1010 — Rubricas" },
+      { id: "S-1020", label: "S-1020 — Lotações tributárias" },
+      { id: "S-1030", label: "S-1030 — Cargos" },
+      { id: "S-1035", label: "S-1035 — Carreiras públicas" },
+      { id: "S-1040", label: "S-1040 — Funções / cargos em comissão" },
+      { id: "S-1050", label: "S-1050 — Horários e turnos" },
+      { id: "S-1060", label: "S-1060 — Ambientes de trabalho" },
+      { id: "S-1070", label: "S-1070 — Processos adm/judiciais" },
+      { id: "S-1080", label: "S-1080 — Operadores portuários" },
+    ],
+    filtroData: "dtIniDtFim",
+    requerCpf: false,
+  },
+};
 
 function competenciaAtual(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function primeiroDiaMesCorrente(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+function ultimoDiaMesCorrente(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
 }
 
 export function EsocialConsultarModal({
@@ -60,13 +142,28 @@ export function EsocialConsultarModal({
   nomeCliente,
 }: Props) {
   const [ambiente, setAmbiente] = useState<1 | 2>(2);
-  const [senha, setSenha] = useState("");
+  const [operacao, setOperacao] = useState<Operacao>("Empregador");
   const [tpEvt, setTpEvt] = useState("S-1299");
   const [perApur, setPerApur] = useState(competenciaAtual());
+  const [dtIni, setDtIni] = useState(primeiroDiaMesCorrente());
+  const [dtFim, setDtFim] = useState(ultimoDiaMesCorrente());
+  const [cpfTrab, setCpfTrab] = useState("");
+  const [senha, setSenha] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [resposta, setResposta] = useState<RespostaOk | null>(null);
   const [erro, setErro] = useState<RespostaErro | null>(null);
+
+  const cfg = OPERACOES[operacao];
+  const tiposDisponiveis = useMemo(() => cfg.tipos, [cfg.tipos]);
+
+  // Quando troca operação, ajusta tpEvt pro primeiro tipo da nova lista
+  function trocarOperacao(nova: Operacao) {
+    setOperacao(nova);
+    setTpEvt(OPERACOES[nova].tipos[0]?.id ?? "");
+    setResposta(null);
+    setErro(null);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -74,20 +171,32 @@ export function EsocialConsultarModal({
       toast.error("Digite a senha do certificado");
       return;
     }
+    if (cfg.requerCpf && cpfTrab.replace(/\D/g, "").length !== 11) {
+      toast.error("CPF do trabalhador inválido (precisa 11 dígitos)");
+      return;
+    }
     setCarregando(true);
     setResposta(null);
     setErro(null);
     try {
+      const body: Record<string, unknown> = {
+        id_cliente: idCliente,
+        ambiente,
+        senha,
+        operacao,
+        tpEvt,
+      };
+      if (cfg.filtroData === "perApur") body.perApur = perApur;
+      else {
+        body.dtIni = dtIni;
+        body.dtFim = dtFim;
+      }
+      if (cfg.requerCpf) body.cpfTrab = cpfTrab.replace(/\D/g, "");
+
       const res = await fetch("/api/integracoes/esocial-consultar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id_cliente: idCliente,
-          ambiente,
-          senha,
-          tpEvt,
-          perApur,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -133,12 +242,9 @@ export function EsocialConsultarModal({
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
           <div>
             Conecta no webservice oficial do eSocial via mTLS com o certificado
-            A1. Esta operação (<code>ConsultaIdentificadoresEventosEmpregador</code>)
-            lista eventos <strong>periódicos do empregador</strong> (S-1298
-            reabertura, S-1299 fechamento) por competência. Eventos
-            não-periódicos (S-2200), por trabalhador (S-1200, S-2299) ou
-            tabela (S-1010, S-1020) precisarão de outras operações em versões
-            futuras. Comece em <strong>Produção Restrita</strong>.
+            A1. Esta consulta <strong>não envia</strong> nada — só lista IDs de
+            eventos já enviados. Comece em <strong>Produção Restrita</strong>{" "}
+            pra validar.
           </div>
         </div>
 
@@ -161,6 +267,20 @@ export function EsocialConsultarModal({
                 <option value={1}>Produção</option>
               </select>
             </Field>
+            <Field label="Operação" required hint={cfg.descricao}>
+              <select
+                className={inputClass}
+                value={operacao}
+                onChange={(e) => trocarOperacao(e.target.value as Operacao)}
+                disabled={carregando}
+              >
+                {(Object.keys(OPERACOES) as Operacao[]).map((op) => (
+                  <option key={op} value={op}>
+                    {OPERACOES[op].label}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Tipo de evento" required>
               <select
                 className={inputClass}
@@ -168,22 +288,61 @@ export function EsocialConsultarModal({
                 onChange={(e) => setTpEvt(e.target.value)}
                 disabled={carregando}
               >
-                {TIPOS_EVENTO.map((t) => (
+                {tiposDisponiveis.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.label}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Período de apuração (YYYY-MM)" required>
-              <input
-                type="month"
-                className={inputClass}
-                value={perApur}
-                onChange={(e) => setPerApur(e.target.value)}
-                disabled={carregando}
-              />
-            </Field>
+
+            {cfg.requerCpf && (
+              <Field label="CPF do trabalhador" required>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={cpfTrab}
+                  onChange={(e) => setCpfTrab(e.target.value)}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                  disabled={carregando}
+                />
+              </Field>
+            )}
+
+            {cfg.filtroData === "perApur" ? (
+              <Field label="Período de apuração" required>
+                <input
+                  type="month"
+                  className={inputClass}
+                  value={perApur}
+                  onChange={(e) => setPerApur(e.target.value)}
+                  disabled={carregando}
+                />
+              </Field>
+            ) : (
+              <>
+                <Field label="Data inicial" required>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={dtIni}
+                    onChange={(e) => setDtIni(e.target.value)}
+                    disabled={carregando}
+                  />
+                </Field>
+                <Field label="Data final" required>
+                  <input
+                    type="date"
+                    className={inputClass}
+                    value={dtFim}
+                    onChange={(e) => setDtFim(e.target.value)}
+                    disabled={carregando}
+                  />
+                </Field>
+              </>
+            )}
+
             <Field label="Senha do certificado A1" required>
               <div className="relative">
                 <input
@@ -241,7 +400,7 @@ export function EsocialConsultarModal({
                 </div>
                 <div className="text-gray-700 mt-1">
                   {resposta.total} evento(s) encontrado(s) pra{" "}
-                  <strong>{tpEvt}</strong> em <strong>{perApur}</strong> (
+                  <strong>{tpEvt}</strong> (
                   {resposta.ambiente === 1 ? "Produção" : "Produção Restrita"}).
                 </div>
               </div>
