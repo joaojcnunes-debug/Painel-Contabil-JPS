@@ -27,6 +27,14 @@ const EsocialConsultarModal = dynamic(
     })),
   { ssr: false }
 );
+
+const EsocialEnviarS1000Modal = dynamic(
+  () =>
+    import("@/components/integracoes/EsocialEnviarS1000Modal").then((m) => ({
+      default: m.EsocialEnviarS1000Modal,
+    })),
+  { ssr: false }
+);
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -74,6 +82,7 @@ export default function ESocialPage() {
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
   const [consultarRealOpen, setConsultarRealOpen] = useState(false);
+  const [enviarS1000Open, setEnviarS1000Open] = useState(false);
 
   const { data: configs = [] } = useIntegracoes(
     idCliente ? { idCliente } : undefined
@@ -191,6 +200,19 @@ export default function ESocialPage() {
             >
               <ShieldCheck size={14} /> Consultar IDs (REAL)
             </button>
+            <button
+              onClick={() => {
+                if (!idCliente) {
+                  toast.error("Selecione a empresa primeiro");
+                  return;
+                }
+                setEnviarS1000Open(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-verde-primary text-white rounded-lg text-xs font-medium hover:bg-verde-accent"
+              title="Enviar S-1000 (cadastro empregador) ao eSocial via webservice"
+            >
+              <Send size={14} /> Enviar S-1000 (REAL)
+            </button>
             <Link
               href="/integracoes/logs?modulo=ESOCIAL"
               className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -202,12 +224,21 @@ export default function ESocialPage() {
       />
 
       {idCliente && clienteSel && (
-        <EsocialConsultarModal
-          open={consultarRealOpen}
-          onClose={() => setConsultarRealOpen(false)}
-          idCliente={idCliente}
-          nomeCliente={clienteSel.razao_social}
-        />
+        <>
+          <EsocialConsultarModal
+            open={consultarRealOpen}
+            onClose={() => setConsultarRealOpen(false)}
+            idCliente={idCliente}
+            nomeCliente={clienteSel.razao_social}
+          />
+          <EsocialEnviarS1000Modal
+            open={enviarS1000Open}
+            onClose={() => setEnviarS1000Open(false)}
+            idCliente={idCliente}
+            nomeCliente={clienteSel.razao_social}
+            razaoSocialPadrao={clienteSel.razao_social}
+          />
+        </>
       )}
 
       <div className="bg-white border border-card-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
