@@ -156,6 +156,13 @@ function motivoNaoReal(
         "Esta ação requer Certificado A1 + senha. Use o fluxo dedicado em /integracoes/esocial (Consultar IDs de eventos).",
     };
   }
+  if (modulo === "PREFEITURAS") {
+    return {
+      codigo: "USE_FLUXO_DEDICADO",
+      mensagem:
+        "NFSe é baixada via API do Emissor Nacional com cert A1. Use o fluxo dedicado em /integracoes/prefeituras (Baixar NFSe REAL).",
+    };
+  }
 
   // Webservices que existem mas não foram implementados ainda
   const exigeCert = new Set<ModuloIntegracao>(["EFD_REINF", "FGTS_DIGITAL"]);
@@ -169,7 +176,6 @@ function motivoNaoReal(
   // Sem API pública gratuita
   const semApiPublica = new Set<ModuloIntegracao>([
     "SIMPLES_NACIONAL",
-    "PREFEITURAS",
     "REDESIM",
     "SPED",
   ]);

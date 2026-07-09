@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -9,6 +10,8 @@ import {
   ArrowLeft,
   Building2,
   CheckCircle2,
+  CloudDownload,
+  FileCode,
   History,
   Landmark,
   Loader2,
@@ -16,6 +19,14 @@ import {
   Receipt,
   ShieldCheck,
 } from "lucide-react";
+
+const NfseDistribuirModal = dynamic(
+  () =>
+    import("@/components/integracoes/NfseDistribuirModal").then((m) => ({
+      default: m.NfseDistribuirModal,
+    })),
+  { ssr: false }
+);
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -52,6 +63,7 @@ export default function PrefeiturasPage() {
   const [aba, setAba] = useState<Aba>("nfse");
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
+  const [nfseDistrOpen, setNfseDistrOpen] = useState(false);
 
   const { data: configs = [] } = useIntegracoes(
     idCliente ? { idCliente } : undefined
@@ -154,14 +166,45 @@ export default function PrefeiturasPage() {
         title="Prefeituras / ISS"
         subtitle="NFS-e, ISS e CND municipal — multi-município"
         actions={
-          <Link
-            href="/integracoes/logs?modulo=PREFEITURAS"
-            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <History size={14} /> Logs
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (!idCliente) {
+                  toast.error("Selecione a empresa primeiro");
+                  return;
+                }
+                setNfseDistrOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-verde-primary text-white rounded-lg text-xs font-medium hover:bg-verde-accent"
+              title="Baixa NFSe do Emissor Nacional (portal unificado) via API oficial + mTLS"
+            >
+              <CloudDownload size={14} /> Baixar NFSe (REAL)
+            </button>
+            <Link
+              href="/integracoes/nfse/recebidas"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
+              title="Listar NFSe já baixadas do bucket"
+            >
+              <FileCode size={14} /> NFSe recebidas
+            </Link>
+            <Link
+              href="/integracoes/logs?modulo=PREFEITURAS"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <History size={14} /> Logs
+            </Link>
+          </div>
         }
       />
+
+      {idCliente && clienteSel && (
+        <NfseDistribuirModal
+          open={nfseDistrOpen}
+          onClose={() => setNfseDistrOpen(false)}
+          idCliente={idCliente}
+          nomeCliente={clienteSel.razao_social}
+        />
+      )}
 
       <div className="bg-white border border-card-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-[280px]">

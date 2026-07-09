@@ -134,7 +134,14 @@ export const MODULOS: ModuloMeta[] = [
     cor: "from-rose-50 to-white border-rose-200",
     slug: "prefeituras",
     acoes: [
-      { id: "consultar_nfse_emitidas", label: "NFS-e emitidas" },
+      {
+        id: "consultar_nfse_emitidas",
+        label: "NFS-e via Emissor Nacional (REAL)",
+        descricao:
+          "Baixa NFSe do portal unificado da Receita via API ADN + cert A1. Usa fluxo dedicado em /integracoes/prefeituras",
+        temReal: true,
+        requerFluxoDedicado: true,
+      },
       { id: "consultar_iss", label: "ISS devido por competência" },
       { id: "consultar_cnd_municipal", label: "Emitir CND municipal" },
       { id: "listar_municipios_configurados", label: "Municípios configurados" },
