@@ -109,13 +109,17 @@ export default function NFePage() {
         const texto = await file.text();
         const nfe = parseNfe(texto);
         if (!nfe || !nfe.chave) {
-          // Detecta se é NFSe (Nota Fiscal de Serviço) e dá mensagem específica
+          // Detecta se é NFSe (Nota Fiscal de Serviço) e dá mensagem específica.
+          // Padrão Nacional usa tags com prefixo namespace (<ns:NFSe>,
+          // <nfse:infNFSe>), chave varia entre 45-55 dígitos (vs 44 exatos
+          // da NF-e), e namespace referencia nfse.gov.br.
           const ehNfse =
-            /<(nfse|NFSe|InfNfse|CompNfse|GerarNfseResposta|ConsultarNfseResposta|numNfse|numeroNFSe|Rps|InfRps)/i.test(
+            /<[\w:.-]*(?:nfse|infnfse|compnfse|nfsepadraonacional|dpsprestador|dpstomador|xnbs|infrps)\b/i.test(
               texto
             ) ||
-            // Chave nacional NFSe tem 50 dígitos vs 44 da NF-e
-            /^\d{50}\.xml$/i.test(file.name);
+            /<[\w:.-]*rps\b/i.test(texto) ||
+            texto.slice(0, 3000).toLowerCase().includes("nfse.gov.br") ||
+            /^\d{45,55}\.xml$/i.test(file.name);
           novos.push({
             nome: file.name,
             status: "erro",
