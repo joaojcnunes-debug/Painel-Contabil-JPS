@@ -34,7 +34,7 @@ export default function IntegracoesPage() {
   const isAdmin = user?.perfil === "Admin";
   const isEquipe = isAdmin || user?.perfil === "Contador";
 
-  const { data: clientes = [] } = useClientes();
+  const { data: clientes = [], isLoading: clientesLoading, error: clientesError } = useClientes();
   const qc = useQueryClient();
   const router = useRouter();
 
@@ -247,14 +247,28 @@ export default function IntegracoesPage() {
             className={inputClass}
             value={idCliente}
             onChange={(e) => setIdCliente(e.target.value)}
+            disabled={clientesLoading}
           >
-            <option value="">Selecione uma empresa…</option>
+            <option value="">
+              {clientesLoading
+                ? "Carregando empresas…"
+                : clientesError
+                  ? "Erro ao carregar (recarregue a página)"
+                  : clientes.length === 0
+                    ? "Nenhuma empresa cadastrada"
+                    : `Selecione uma empresa… (${clientes.length} disponível${clientes.length > 1 ? "eis" : ""})`}
+            </option>
             {clientes.map((c) => (
               <option key={c.id_cliente} value={c.id_cliente}>
                 {c.razao_social}
               </option>
             ))}
           </select>
+          {clientesError && (
+            <div className="text-[10px] text-red-alert mt-1">
+              {(clientesError as Error).message}
+            </div>
+          )}
         </div>
         {idCliente && (
           <div className="flex items-center gap-3 ml-auto">
