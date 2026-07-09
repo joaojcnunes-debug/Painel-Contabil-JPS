@@ -26,14 +26,12 @@ import { gunzipSync } from "zlib";
 
 export type AmbienteNfse = 1 | 2; // 1=Produção, 2=Produção Restrita
 
+// Endpoint ADN — tanto pra distribuição por NSU quanto pra baixar NFSe
+// individual por chave. SefinNacional (que apareceu em pesquisa antiga)
+// é rota diferente pra outras operações.
 const ENDPOINT_ADN: Record<AmbienteNfse, string> = {
   1: "https://adn.nfse.gov.br",
   2: "https://adn.producaorestrita.nfse.gov.br",
-};
-
-const ENDPOINT_SEFIN: Record<AmbienteNfse, string> = {
-  1: "https://sefin.nfse.gov.br",
-  2: "https://sefin.producaorestrita.nfse.gov.br",
 };
 
 // Extrai key + cert do PFX (mesma técnica do SEFAZ/eSocial)
@@ -188,12 +186,19 @@ export async function listarNfsePorNsu(
 
   const ultimoNsu = p.ultimoNsu ?? "0";
 
+  // Path CORRETO (validado no swagger contribuintes ISSQN, jun/2026):
+  // GET /contribuintes/DFe/{NSU}?tipoNSU=DISTRIBUICAO&lote=true
+  // - "contribuintes" plural (não singular)
+  // - "DFe" (não "nfse") — rota compartilha padrão DF-e
+  // - NSU no PATH parameter, não em query
+  // - tipoNSU=DISTRIBUICAO obrigatório
+  // - lote=true traz várias notas em uma chamada
   let res: { status: number; body: unknown };
   try {
     res = await requestJsonMTLS<unknown>({
       endpoint: ENDPOINT_ADN[p.ambiente],
       method: "GET",
-      path: `/contribuinte/nfse?ultimoNSU=${encodeURIComponent(ultimoNsu)}`,
+      path: `/contribuintes/DFe/${encodeURIComponent(ultimoNsu)}?tipoNSU=DISTRIBUICAO&lote=true`,
       privateKeyPem,
       certPem,
     });
@@ -211,46 +216,73 @@ export async function listarNfsePorNsu(
     };
   }
 
-  // Formato esperado (conforme swagger contribuintes v1.2):
-  // {
-  //   "ultimoNSU": "12345",
-  //   "maxNSU": "12345",
-  //   "loteDistNfse": {
-  //     "docsZip": [
-  //       {
-  //         "nsu": "12340",
-  //         "chaveAcesso": "...",
-  //         "tipo": "PRESTADOR|TOMADOR|INTERMEDIARIO",
-  //         "nfseXmlGZipB64": "H4sI..."
-  //       },
-  //       ...
-  //     ]
-  //   }
-  // }
+  // Parser tolerante — a estrutura da resposta pode variar entre versões.
+  // Suporta formatos:
+  // (a) v1.2 antiga: { loteDistNfse: { docsZip: [{ nsu, chaveAcesso, tipo, nfseXmlGZipB64 }] } }
+  // (b) v1.2 atual (?lote=true): { ultimoNSU, maxNSU, LoteDFe: [{ NSU, chNFSe, tipo, arqNFSe }] }
+  // (c) documento único: { NSU, chNFSe, arqNFSe, tipo } (sem wrapper)
   const body = res.body as {
     ultimoNSU?: string;
     maxNSU?: string;
     loteDistNfse?: {
       docsZip?: Array<{
-        nsu: string;
-        chaveAcesso: string;
-        tipo: string;
-        nfseXmlGZipB64: string;
+        nsu?: string;
+        NSU?: string;
+        chaveAcesso?: string;
+        chNFSe?: string;
+        tipo?: string;
+        nfseXmlGZipB64?: string;
+        arqNFSe?: string;
       }>;
     };
+    LoteDFe?: Array<{
+      nsu?: string;
+      NSU?: string;
+      chaveAcesso?: string;
+      chNFSe?: string;
+      tipo?: string;
+      nfseXmlGZipB64?: string;
+      arqNFSe?: string;
+    }>;
+    // Documento único (sem wrapper)
+    NSU?: string;
+    chNFSe?: string;
+    arqNFSe?: string;
+    tipo?: string;
   };
 
-  const docsZip = body.loteDistNfse?.docsZip ?? [];
+  // Tenta cada formato possível
+  let docsZip: Array<{
+    nsu?: string;
+    NSU?: string;
+    chaveAcesso?: string;
+    chNFSe?: string;
+    tipo?: string;
+    nfseXmlGZipB64?: string;
+    arqNFSe?: string;
+  }> = [];
+  if (body.loteDistNfse?.docsZip) {
+    docsZip = body.loteDistNfse.docsZip;
+  } else if (Array.isArray(body.LoteDFe)) {
+    docsZip = body.LoteDFe;
+  } else if (body.arqNFSe || body.chNFSe) {
+    docsZip = [body];
+  }
   const documentos: NfseDoc[] = [];
   for (const d of docsZip) {
     try {
-      const gzipped = Buffer.from(d.nfseXmlGZipB64, "base64");
+      // Aceita ambas as convenções de nomeação (v1.2 antiga e atual)
+      const b64 = d.nfseXmlGZipB64 ?? d.arqNFSe;
+      const chave = d.chaveAcesso ?? d.chNFSe;
+      const nsu = d.nsu ?? d.NSU ?? "";
+      if (!b64 || !chave) continue;
+      const gzipped = Buffer.from(b64, "base64");
       const xml = gunzipSync(gzipped).toString("utf-8");
       const papel = (d.tipo?.toUpperCase() as NfseDoc["papel"]) ?? "PRESTADOR";
       const meta = extrairResumoNfse(xml);
       documentos.push({
-        chave: d.chaveAcesso,
-        nsu: d.nsu,
+        chave,
+        nsu,
         papel,
         xml,
         ...meta,
@@ -313,17 +345,18 @@ export async function baixarNfsePorChave(
     };
   }
 
+  // Path CORRETO validado: /contribuintes/NFSe/{chave}
   let res: { status: number; body: unknown };
   try {
     res = await requestJsonMTLS<unknown>({
-      endpoint: ENDPOINT_SEFIN[p.ambiente],
+      endpoint: ENDPOINT_ADN[p.ambiente],  // ADN, não SefinNacional
       method: "GET",
-      path: `/SefinNacional/nfse/${encodeURIComponent(p.chave)}`,
+      path: `/contribuintes/NFSe/${encodeURIComponent(p.chave)}`,
       privateKeyPem,
       certPem,
     });
   } catch (e) {
-    return { ok: false, erro: `Conexão SefinNacional: ${(e as Error).message}` };
+    return { ok: false, erro: `Conexão ADN NFSe: ${(e as Error).message}` };
   }
 
   if (res.status !== 200) {
@@ -335,16 +368,17 @@ export async function baixarNfsePorChave(
     };
   }
 
-  const body = res.body as { nfseXmlGZipB64?: string };
-  if (!body.nfseXmlGZipB64) {
+  const body = res.body as { nfseXmlGZipB64?: string; arqNFSe?: string };
+  const b64 = body.nfseXmlGZipB64 ?? body.arqNFSe;
+  if (!b64) {
     return {
       ok: false,
-      erro: "Resposta sem nfseXmlGZipB64",
+      erro: "Resposta sem XML (nfseXmlGZipB64 nem arqNFSe)",
     };
   }
 
   try {
-    const gzipped = Buffer.from(body.nfseXmlGZipB64, "base64");
+    const gzipped = Buffer.from(b64, "base64");
     const xml = gunzipSync(gzipped).toString("utf-8");
     return { ok: true, chave: p.chave, xml };
   } catch (e) {
