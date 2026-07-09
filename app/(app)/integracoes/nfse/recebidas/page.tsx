@@ -118,7 +118,14 @@ export default async function NfseRecebidasPage({
   if (sp.de) q = q.gte("dh_emissao", sp.de);
   if (sp.ate) q = q.lte("dh_emissao", sp.ate + "T23:59:59");
   if (sp.competencia && /^\d{4}-\d{2}$/.test(sp.competencia)) {
-    q = q.like("dh_emissao", `${sp.competencia}%`);
+    const [anoStr, mesStr] = sp.competencia.split("-");
+    const ano = Number(anoStr);
+    const mes = Number(mesStr);
+    const proxMes = mes === 12 ? 1 : mes + 1;
+    const proxAno = mes === 12 ? ano + 1 : ano;
+    const inicio = `${anoStr}-${mesStr}-01`;
+    const fim = `${proxAno}-${String(proxMes).padStart(2, "0")}-01`;
+    q = q.gte("dh_emissao", inicio).lt("dh_emissao", fim);
   }
 
   const { data, error } = await q;
