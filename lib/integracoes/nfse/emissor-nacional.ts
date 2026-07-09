@@ -206,6 +206,33 @@ export async function listarNfsePorNsu(
     return { ok: false, erro: `Conexão ADN NFSe: ${(e as Error).message}` };
   }
 
+  // ADN retorna 404 com body estruturado quando NÃO HÁ documentos a partir
+  // do NSU. Isso é sucesso vazio (não erro real):
+  // {
+  //   "StatusProcessamento": "NENHUM_DOCUMENTO_LOCALIZADO",
+  //   "LoteDFe": [],
+  //   "Erros": [{ "Codigo": "E2220", ... }]
+  // }
+  if (res.status === 404 && typeof res.body === "object" && res.body !== null) {
+    const b = res.body as {
+      StatusProcessamento?: string;
+      Erros?: Array<{ Codigo?: string }>;
+    };
+    const semDocs =
+      b.StatusProcessamento === "NENHUM_DOCUMENTO_LOCALIZADO" ||
+      b.Erros?.some((e) => e.Codigo === "E2220");
+    if (semDocs) {
+      return {
+        ok: true,
+        ambiente: p.ambiente,
+        ultimoNsuConsultado: ultimoNsu,
+        proximoNsu: ultimoNsu,
+        documentos: [],
+        temMais: false,
+      };
+    }
+  }
+
   if (res.status !== 200) {
     const rawStr = typeof res.body === "string" ? res.body : JSON.stringify(res.body);
     return {
