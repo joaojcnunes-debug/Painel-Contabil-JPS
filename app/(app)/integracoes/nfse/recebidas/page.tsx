@@ -23,6 +23,23 @@ type Search = {
   de?: string;
   ate?: string;
   competencia?: string; // YYYY-MM
+  ordem?: string; // emissao_desc | emissao_asc | valor_desc | valor_asc | numero_desc | numero_asc | tomador_asc
+};
+
+type Ordem = {
+  campo: "dh_emissao" | "valor_servicos" | "numero_nfse" | "tomador_nome";
+  asc: boolean;
+};
+
+const ORDENS: Record<string, Ordem> = {
+  emissao_desc: { campo: "dh_emissao", asc: false },
+  emissao_asc: { campo: "dh_emissao", asc: true },
+  valor_desc: { campo: "valor_servicos", asc: false },
+  valor_asc: { campo: "valor_servicos", asc: true },
+  numero_desc: { campo: "numero_nfse", asc: false },
+  numero_asc: { campo: "numero_nfse", asc: true },
+  tomador_asc: { campo: "tomador_nome", asc: true },
+  tomador_desc: { campo: "tomador_nome", asc: false },
 };
 
 const MESES_PT = [
@@ -138,9 +155,10 @@ export default async function NfseRecebidasPage({
   const totalIss = nfses.reduce((acc, r) => acc + (Number(r.valor_iss) || 0), 0);
   const totalCanceladas = nfses.filter((r) => r.status === "CANCELADA").length;
 
-  // Agrupa por competência (YYYY-MM extraído de dh_emissao). Como a query já
-  // vem ordenada dh_emissao desc, os grupos aparecem do mais recente pro mais
-  // antigo automaticamente.
+  // Agrupa por competência (YYYY-MM extraído de dh_emissao). A ordem dos
+  // grupos vem sempre por competência desc. A ordem DENTRO de cada grupo é
+  // definida por sp.ordem (default: emissão desc).
+  const ordemAtual = ORDENS[sp.ordem ?? "emissao_desc"] ?? ORDENS.emissao_desc;
   const grupos = new Map<
     string,
     { itens: NfseRow[]; valor: number; iss: number; canceladas: number }
@@ -153,6 +171,22 @@ export default async function NfseRecebidasPage({
     g.iss += Number(n.valor_iss) || 0;
     if (n.status === "CANCELADA") g.canceladas++;
     grupos.set(comp, g);
+  }
+  // Ordena itens dentro de cada grupo conforme escolha do usuário
+  for (const g of grupos.values()) {
+    g.itens.sort((a, b) => {
+      const va = a[ordemAtual.campo];
+      const vb = b[ordemAtual.campo];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" && typeof vb === "number") {
+        return ordemAtual.asc ? va - vb : vb - va;
+      }
+      const sa = String(va);
+      const sb = String(vb);
+      return ordemAtual.asc ? sa.localeCompare(sb) : sb.localeCompare(sa);
+    });
   }
 
   return (
@@ -254,6 +288,28 @@ export default async function NfseRecebidasPage({
         </div>
         <div>
           <label className="block text-xs uppercase text-gray-500 mb-1">
+            Emitida de
+          </label>
+          <input
+            type="date"
+            name="de"
+            defaultValue={sp.de ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="block text-xs uppercase text-gray-500 mb-1">
+            Emitida até
+          </label>
+          <input
+            type="date"
+            name="ate"
+            defaultValue={sp.ate ?? ""}
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label className="block text-xs uppercase text-gray-500 mb-1">
             Competência
           </label>
           <input
@@ -266,25 +322,23 @@ export default async function NfseRecebidasPage({
         </div>
         <div>
           <label className="block text-xs uppercase text-gray-500 mb-1">
-            Emissão de
+            Ordenar por
           </label>
-          <input
-            type="date"
-            name="de"
-            defaultValue={sp.de ?? ""}
+          <select
+            name="ordem"
+            defaultValue={sp.ordem ?? "emissao_desc"}
             className={inputClass}
-          />
-        </div>
-        <div>
-          <label className="block text-xs uppercase text-gray-500 mb-1">
-            Emissão até
-          </label>
-          <input
-            type="date"
-            name="ate"
-            defaultValue={sp.ate ?? ""}
-            className={inputClass}
-          />
+            title="Ordem dentro de cada mês"
+          >
+            <option value="emissao_desc">Emissão (mais recente)</option>
+            <option value="emissao_asc">Emissão (mais antiga)</option>
+            <option value="valor_desc">Valor (maior primeiro)</option>
+            <option value="valor_asc">Valor (menor primeiro)</option>
+            <option value="numero_desc">Número (maior primeiro)</option>
+            <option value="numero_asc">Número (menor primeiro)</option>
+            <option value="tomador_asc">Tomador (A→Z)</option>
+            <option value="tomador_desc">Tomador (Z→A)</option>
+          </select>
         </div>
         <div className="sm:col-span-2 lg:col-span-4 flex justify-end gap-2">
           <Link href="/integracoes/nfse/recebidas">
@@ -315,13 +369,13 @@ export default async function NfseRecebidasPage({
         <table className="w-full text-sm min-w-[1000px]">
           <thead className="bg-gray-50 text-gray-600 text-left text-xs uppercase">
             <tr>
-              <th className="px-4 py-3 w-28">Emissão</th>
-              <th className="px-4 py-3 w-24">Nº / série</th>
-              <th className="px-4 py-3">Prestador → Tomador</th>
-              <th className="px-4 py-3 w-32 text-right">Valor</th>
+              <th className="px-4 py-3 w-28">Data emissão</th>
+              <th className="px-4 py-3 w-24">Nº NFSe</th>
+              <th className="px-4 py-3">Tomador (cliente do serviço)</th>
+              <th className="px-4 py-3 w-32 text-right">Valor serviços</th>
               <th className="px-4 py-3 w-24">Papel</th>
-              <th className="px-4 py-3 w-28">Status</th>
-              <th className="px-4 py-3 w-20">Amb</th>
+              <th className="px-4 py-3 w-28">Situação</th>
+              <th className="px-4 py-3 w-24">Ambiente</th>
               <th className="px-4 py-3 w-24"></th>
             </tr>
           </thead>
@@ -395,16 +449,16 @@ export default async function NfseRecebidasPage({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-xs text-gray-800 truncate max-w-xs">
-                        {n.prestador_nome ?? "—"}
-                        {n.prestador_cnpj && (
+                      <div className="text-sm font-medium text-gray-800 truncate max-w-xs">
+                        {n.tomador_nome ?? "Sem tomador"}
+                        {n.tomador_cnpj && (
                           <span className="text-[10px] text-gray-500 ml-1 font-mono">
-                            {formatCNPJ(n.prestador_cnpj)}
+                            {formatCNPJ(n.tomador_cnpj)}
                           </span>
                         )}
                       </div>
                       <div className="text-[10px] text-gray-500 truncate max-w-xs">
-                        → {n.tomador_nome ?? "sem tomador"}
+                        Prestador: {n.prestador_nome ?? "—"}
                       </div>
                       {n.discriminacao && (
                         <div className="text-[10px] text-gray-400 italic truncate max-w-xs mt-0.5">
