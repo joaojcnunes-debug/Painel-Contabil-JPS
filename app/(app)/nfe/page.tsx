@@ -109,10 +109,19 @@ export default function NFePage() {
         const texto = await file.text();
         const nfe = parseNfe(texto);
         if (!nfe || !nfe.chave) {
+          // Detecta se é NFSe (Nota Fiscal de Serviço) e dá mensagem específica
+          const ehNfse =
+            /<(nfse|NFSe|InfNfse|CompNfse|GerarNfseResposta|ConsultarNfseResposta|numNfse|numeroNFSe|Rps|InfRps)/i.test(
+              texto
+            ) ||
+            // Chave nacional NFSe tem 50 dígitos vs 44 da NF-e
+            /^\d{50}\.xml$/i.test(file.name);
           novos.push({
             nome: file.name,
             status: "erro",
-            erro: "XML não é NF-e válida (chave não encontrada)",
+            erro: ehNfse
+              ? "Este XML é uma NFSe (serviço), não NF-e (mercadoria). Use /integracoes/prefeituras → Baixar NFSe (via API) — não é possível importar manualmente aqui."
+              : "XML não é NF-e válida (chave não encontrada)",
             criarLancamento: false,
             idConta: "",
           });
