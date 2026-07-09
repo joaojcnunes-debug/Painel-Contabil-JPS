@@ -26,6 +26,7 @@ import {
   FileCode,
   Plane,
   Globe2,
+  ReceiptText,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,11 @@ const ITEMS_INTERNO: ItemWithGuard[] = [
   { href: "/decimo-terceiro", label: "13º salário", icon: Gift },
   { href: "/ferias", label: "Férias", icon: Plane },
   { href: "/nfe", label: "NF-e", icon: FileCode },
+  {
+    href: "/integracoes/nfse/recebidas",
+    label: "Notas Fiscais Emitidas",
+    icon: ReceiptText,
+  },
   { href: "/integracoes", label: "Integrações", icon: Globe2 },
   { href: "/sessoes-ecac", label: "Sessões e-CAC", icon: ShieldCheck },
   { href: "/produtividade", label: "Produtividade", icon: TrendingUp },

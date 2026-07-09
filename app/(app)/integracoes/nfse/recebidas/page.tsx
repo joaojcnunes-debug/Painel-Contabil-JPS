@@ -192,8 +192,8 @@ export default async function NfseRecebidasPage({
   return (
     <div>
       <PageHeader
-        title="NFSe recebidas — Emissor Nacional"
-        subtitle="XMLs baixados via API oficial ADN e armazenados no bucket"
+        title="Notas Fiscais Emitidas"
+        subtitle="NFSe importadas manualmente ou baixadas via API do Emissor Nacional"
         actions={
           <div className="flex items-center gap-2">
             <ImportarNfseManualButton />

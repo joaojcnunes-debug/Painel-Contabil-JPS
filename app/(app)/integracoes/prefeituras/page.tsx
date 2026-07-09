@@ -205,9 +205,9 @@ export default function PrefeiturasPage() {
             <Link
               href="/integracoes/nfse/recebidas"
               className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
-              title="Listar NFSe já baixadas do bucket"
+              title="Listar Notas Fiscais Emitidas"
             >
-              <FileCode size={14} /> NFSe recebidas
+              <FileCode size={14} /> Notas Fiscais Emitidas
             </Link>
             <Link
               href="/integracoes/logs?modulo=PREFEITURAS"
