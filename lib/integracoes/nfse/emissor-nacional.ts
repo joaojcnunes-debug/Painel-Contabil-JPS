@@ -415,6 +415,25 @@ export async function baixarNfsePorChave(
 
 // ─── Parse leve de metadata do XML NFSe ─────────────────────
 
+// Extrai a chave de acesso de um XML NFSe (padrão nacional).
+// Tenta múltiplos caminhos porque o XML varia entre portais municipais:
+// - Id="NFSe33..." no atributo de <InfNFSe> (padrão nacional)
+// - <chNFSe>...</chNFSe> ou <chaveAcesso>...</chaveAcesso> (algumas variações)
+// Aceita prefixo de namespace e chaves entre 40-55 dígitos.
+export function extrairChaveNfse(xml: string): string | null {
+  const idMatch = xml.match(
+    /<[^>]*(?:infNFSe|InfNFSe|InfoNFSe)[^>]*\bId="([^"]+)"/i
+  );
+  if (idMatch) {
+    return idMatch[1].replace(/^NFSe?/i, "").trim();
+  }
+  const chMatch = xml.match(
+    /<[\w:]*(?:chNFSe|chaveAcesso|CodigoVerificacao)\b[^>]*>(\d{40,55})</i
+  );
+  if (chMatch) return chMatch[1];
+  return null;
+}
+
 export function extrairResumoNfse(xml: string): Partial<NfseDoc> {
   // Layout unificado do Emissor Nacional (NFSePadraoNacional).
   // Elementos comuns (tags variam levemente entre versões):

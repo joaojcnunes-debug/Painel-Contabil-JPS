@@ -10,6 +10,7 @@ import { inputClass } from "@/components/ui/Field";
 import { getServerSupabase } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatDate } from "@/lib/utils";
 import { BaixarNfseXmlButton } from "./BaixarNfseXmlButton";
+import { ImportarNfseManualButton } from "./ImportarNfseManualButton";
 
 type Search = {
   cliente?: string;
@@ -109,11 +110,14 @@ export default async function NfseRecebidasPage({
         title="NFSe recebidas — Emissor Nacional"
         subtitle="XMLs baixados via API oficial ADN e armazenados no bucket"
         actions={
-          <Link href="/integracoes/prefeituras">
-            <Button variant="secondary" className="flex items-center gap-2">
-              <ArrowLeft size={16} /> Voltar a Prefeituras
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ImportarNfseManualButton />
+            <Link href="/integracoes/prefeituras">
+              <Button variant="secondary" className="flex items-center gap-2">
+                <ArrowLeft size={16} /> Voltar a Prefeituras
+              </Button>
+            </Link>
+          </div>
         }
       />
 

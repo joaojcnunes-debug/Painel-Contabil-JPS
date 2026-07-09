@@ -124,7 +124,7 @@ export default function NFePage() {
             nome: file.name,
             status: "erro",
             erro: ehNfse
-              ? "Este XML é uma NFSe (serviço), não NF-e (mercadoria). Use /integracoes/prefeituras → Baixar NFSe (via API) — não é possível importar manualmente aqui."
+              ? "Este XML é uma NFSe (serviço), não NF-e (mercadoria). Importe em /integracoes/nfse/recebidas → botão \"Importar XML manual\"."
               : "XML não é NF-e válida (chave não encontrada)",
             criarLancamento: false,
             idConta: "",
