@@ -2,6 +2,7 @@
 //
 // Server Component que lê nfse_recebidas com filtros via searchParams.
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileCode, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -21,7 +22,30 @@ type Search = {
   tomador?: string;
   de?: string;
   ate?: string;
+  competencia?: string; // YYYY-MM
 };
+
+const MESES_PT = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+function formatCompetencia(yyyyMM: string): string {
+  const m = yyyyMM.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return yyyyMM;
+  const mes = MESES_PT[Number(m[2]) - 1] ?? m[2];
+  return `${mes}/${m[1]}`;
+}
 
 type NfseRow = {
   chave: string;
@@ -93,6 +117,9 @@ export default async function NfseRecebidasPage({
   if (sp.tomador) q = q.ilike("tomador_nome", `%${sp.tomador}%`);
   if (sp.de) q = q.gte("dh_emissao", sp.de);
   if (sp.ate) q = q.lte("dh_emissao", sp.ate + "T23:59:59");
+  if (sp.competencia && /^\d{4}-\d{2}$/.test(sp.competencia)) {
+    q = q.like("dh_emissao", `${sp.competencia}%`);
+  }
 
   const { data, error } = await q;
   const nfses = (data ?? []) as unknown as NfseRow[];
@@ -103,6 +130,23 @@ export default async function NfseRecebidasPage({
   );
   const totalIss = nfses.reduce((acc, r) => acc + (Number(r.valor_iss) || 0), 0);
   const totalCanceladas = nfses.filter((r) => r.status === "CANCELADA").length;
+
+  // Agrupa por competência (YYYY-MM extraído de dh_emissao). Como a query já
+  // vem ordenada dh_emissao desc, os grupos aparecem do mais recente pro mais
+  // antigo automaticamente.
+  const grupos = new Map<
+    string,
+    { itens: NfseRow[]; valor: number; iss: number; canceladas: number }
+  >();
+  for (const n of nfses) {
+    const comp = n.dh_emissao ? n.dh_emissao.slice(0, 7) : "sem-data";
+    const g = grupos.get(comp) ?? { itens: [], valor: 0, iss: 0, canceladas: 0 };
+    g.itens.push(n);
+    g.valor += Number(n.valor_servicos) || 0;
+    g.iss += Number(n.valor_iss) || 0;
+    if (n.status === "CANCELADA") g.canceladas++;
+    grupos.set(comp, g);
+  }
 
   return (
     <div>
@@ -203,6 +247,18 @@ export default async function NfseRecebidasPage({
         </div>
         <div>
           <label className="block text-xs uppercase text-gray-500 mb-1">
+            Competência
+          </label>
+          <input
+            type="month"
+            name="competencia"
+            defaultValue={sp.competencia ?? ""}
+            className={inputClass}
+            title="Filtra pelo mês/ano de emissão"
+          />
+        </div>
+        <div>
+          <label className="block text-xs uppercase text-gray-500 mb-1">
             Emissão de
           </label>
           <input
@@ -287,91 +343,122 @@ export default async function NfseRecebidasPage({
                 </td>
               </tr>
             )}
-            {nfses.map((n) => (
-              <tr key={n.chave} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-[11px]">
-                  {n.dh_emissao
-                    ? formatDate(n.dh_emissao.slice(0, 10))
-                    : "—"}
-                </td>
-                <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
-                  {n.numero_nfse ?? "—"}
-                  {n.serie && (
-                    <span className="text-[10px] text-gray-500 ml-1">
-                      /{n.serie}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="text-xs text-gray-800 truncate max-w-xs">
-                    {n.prestador_nome ?? "—"}
-                    {n.prestador_cnpj && (
-                      <span className="text-[10px] text-gray-500 ml-1 font-mono">
-                        {formatCNPJ(n.prestador_cnpj)}
+            {Array.from(grupos.entries()).map(([comp, g]) => (
+              <Fragment key={comp}>
+                <tr className="bg-app-bg/60">
+                  <td
+                    colSpan={8}
+                    className="px-4 py-2 text-xs font-semibold text-verde-dark border-t-2 border-verde-primary/20"
+                  >
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <span className="uppercase tracking-wide">
+                        {comp === "sem-data"
+                          ? "Sem data de emissão"
+                          : formatCompetencia(comp)}
+                        <span className="ml-2 text-[10px] font-normal text-gray-500">
+                          {g.itens.length} NFSe
+                          {g.canceladas > 0 &&
+                            ` · ${g.canceladas} cancelada${g.canceladas > 1 ? "s" : ""}`}
+                        </span>
                       </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-gray-500 truncate max-w-xs">
-                    → {n.tomador_nome ?? "sem tomador"}
-                  </div>
-                  {n.discriminacao && (
-                    <div className="text-[10px] text-gray-400 italic truncate max-w-xs mt-0.5">
-                      {n.discriminacao}
+                      <span className="font-mono text-gray-700">
+                        {formatBRL(g.valor)}
+                        {g.iss > 0 && (
+                          <span className="ml-3 text-[10px] text-gray-500">
+                            ISS {formatBRL(g.iss)}
+                          </span>
+                        )}
+                      </span>
                     </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <div className="text-sm font-medium text-verde-dark">
-                    {n.valor_servicos != null
-                      ? formatBRL(Number(n.valor_servicos))
-                      : "—"}
-                  </div>
-                  {n.valor_iss != null && Number(n.valor_iss) > 0 && (
-                    <div className="text-[10px] text-gray-500">
-                      ISS {formatBRL(Number(n.valor_iss))}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {n.papel && (
-                    <span
-                      className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                        PAPEL_COR[n.papel] ?? "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {n.papel === "INTERMEDIARIO"
-                        ? "Interm."
-                        : n.papel.toLowerCase()}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                      STATUS_COR[n.status] ?? "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {n.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={
-                      n.ambiente === 1
-                        ? "text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-verde-light text-verde-dark"
-                        : "text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"
-                    }
-                  >
-                    {n.ambiente === 1 ? "Prod" : "Homol"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <BaixarNfseXmlButton
-                    chave={n.chave}
-                    numero={n.numero_nfse ?? n.chave.slice(-6)}
-                  />
-                </td>
-              </tr>
+                  </td>
+                </tr>
+                {g.itens.map((n) => (
+                  <tr key={n.chave} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-[11px]">
+                      {n.dh_emissao
+                        ? formatDate(n.dh_emissao.slice(0, 10))
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 whitespace-nowrap">
+                      {n.numero_nfse ?? "—"}
+                      {n.serie && (
+                        <span className="text-[10px] text-gray-500 ml-1">
+                          /{n.serie}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-800 truncate max-w-xs">
+                        {n.prestador_nome ?? "—"}
+                        {n.prestador_cnpj && (
+                          <span className="text-[10px] text-gray-500 ml-1 font-mono">
+                            {formatCNPJ(n.prestador_cnpj)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-gray-500 truncate max-w-xs">
+                        → {n.tomador_nome ?? "sem tomador"}
+                      </div>
+                      {n.discriminacao && (
+                        <div className="text-[10px] text-gray-400 italic truncate max-w-xs mt-0.5">
+                          {n.discriminacao}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="text-sm font-medium text-verde-dark">
+                        {n.valor_servicos != null
+                          ? formatBRL(Number(n.valor_servicos))
+                          : "—"}
+                      </div>
+                      {n.valor_iss != null && Number(n.valor_iss) > 0 && (
+                        <div className="text-[10px] text-gray-500">
+                          ISS {formatBRL(Number(n.valor_iss))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {n.papel && (
+                        <span
+                          className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                            PAPEL_COR[n.papel] ?? "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {n.papel === "INTERMEDIARIO"
+                            ? "Interm."
+                            : n.papel.toLowerCase()}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                          STATUS_COR[n.status] ?? "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {n.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          n.ambiente === 1
+                            ? "text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-verde-light text-verde-dark"
+                            : "text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"
+                        }
+                      >
+                        {n.ambiente === 1 ? "Prod" : "Homol"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <BaixarNfseXmlButton
+                        chave={n.chave}
+                        numero={n.numero_nfse ?? n.chave.slice(-6)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>
