@@ -366,24 +366,25 @@ export default async function NfseRecebidasPage({
 
       {/* Tabela */}
       <div className="bg-white border border-card-border rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[1000px]">
+        <table className="w-full text-sm min-w-[1200px]">
           <thead className="bg-gray-50 text-gray-600 text-left text-xs uppercase">
             <tr>
               <th className="px-4 py-3 w-28">Data emissão</th>
               <th className="px-4 py-3 w-24">Nº NFSe</th>
-              <th className="px-4 py-3">Tomador (cliente do serviço)</th>
+              <th className="px-4 py-3">Tomador</th>
+              <th className="px-4 py-3">Prestador</th>
               <th className="px-4 py-3 w-32 text-right">Valor serviços</th>
               <th className="px-4 py-3 w-24">Papel</th>
               <th className="px-4 py-3 w-28">Situação</th>
               <th className="px-4 py-3 w-24">Ambiente</th>
-              <th className="px-4 py-3 w-24"></th>
+              <th className="px-4 py-3 w-20"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-card-border">
             {error && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-4 py-6 text-center text-red-alert text-sm"
                 >
                   Erro: {error.message}
@@ -393,7 +394,7 @@ export default async function NfseRecebidasPage({
             {!error && nfses.length === 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-4 py-10 text-center text-sm text-gray-500"
                 >
                   <FileCode
@@ -408,7 +409,7 @@ export default async function NfseRecebidasPage({
               <Fragment key={comp}>
                 <tr className="bg-app-bg/60">
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-2 text-xs font-semibold text-verde-dark border-t-2 border-verde-primary/20"
                   >
                     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -449,20 +450,27 @@ export default async function NfseRecebidasPage({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-gray-800 truncate max-w-xs">
+                      <div className="text-sm font-medium text-gray-800 truncate max-w-[240px]">
                         {n.tomador_nome ?? "Sem tomador"}
-                        {n.tomador_cnpj && (
-                          <span className="text-[10px] text-gray-500 ml-1 font-mono">
-                            {formatCNPJ(n.tomador_cnpj)}
-                          </span>
-                        )}
                       </div>
-                      <div className="text-[10px] text-gray-500 truncate max-w-xs">
-                        Prestador: {n.prestador_nome ?? "—"}
-                      </div>
+                      {n.tomador_cnpj && (
+                        <div className="text-[10px] text-gray-500 font-mono">
+                          {formatCNPJ(n.tomador_cnpj)}
+                        </div>
+                      )}
                       {n.discriminacao && (
-                        <div className="text-[10px] text-gray-400 italic truncate max-w-xs mt-0.5">
+                        <div className="text-[10px] text-gray-400 italic truncate max-w-[240px] mt-0.5">
                           {n.discriminacao}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs text-gray-700 truncate max-w-[240px]">
+                        {n.prestador_nome ?? "—"}
+                      </div>
+                      {n.prestador_cnpj && (
+                        <div className="text-[10px] text-gray-500 font-mono">
+                          {formatCNPJ(n.prestador_cnpj)}
                         </div>
                       )}
                     </td>
