@@ -415,7 +415,7 @@ export async function baixarNfsePorChave(
 
 // ─── Parse leve de metadata do XML NFSe ─────────────────────
 
-function extrairResumoNfse(xml: string): Partial<NfseDoc> {
+export function extrairResumoNfse(xml: string): Partial<NfseDoc> {
   // Layout unificado do Emissor Nacional (NFSePadraoNacional).
   // Elementos comuns (tags variam levemente entre versões):
   const get = (tag: string): string | undefined => {

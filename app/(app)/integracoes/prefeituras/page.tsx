@@ -17,6 +17,7 @@ import {
   Loader2,
   Play,
   Receipt,
+  Search,
   ShieldCheck,
 } from "lucide-react";
 
@@ -24,6 +25,13 @@ const NfseDistribuirModal = dynamic(
   () =>
     import("@/components/integracoes/NfseDistribuirModal").then((m) => ({
       default: m.NfseDistribuirModal,
+    })),
+  { ssr: false }
+);
+const NfseConsultarChaveModal = dynamic(
+  () =>
+    import("@/components/integracoes/NfseConsultarChaveModal").then((m) => ({
+      default: m.NfseConsultarChaveModal,
     })),
   { ssr: false }
 );
@@ -64,6 +72,7 @@ export default function PrefeiturasPage() {
   const [executando, setExecutando] = useState(false);
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
   const [nfseDistrOpen, setNfseDistrOpen] = useState(false);
+  const [nfseChaveOpen, setNfseChaveOpen] = useState(false);
 
   const { data: configs = [] } = useIntegracoes(
     idCliente ? { idCliente } : undefined
@@ -180,6 +189,19 @@ export default function PrefeiturasPage() {
             >
               <CloudDownload size={14} /> Baixar NFSe (REAL)
             </button>
+            <button
+              onClick={() => {
+                if (!idCliente) {
+                  toast.error("Selecione a empresa primeiro");
+                  return;
+                }
+                setNfseChaveOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+              title="Diagnóstico: consulta NFSe específica no ADN pela chave de acesso"
+            >
+              <Search size={14} /> Consultar por chave
+            </button>
             <Link
               href="/integracoes/nfse/recebidas"
               className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
@@ -198,12 +220,20 @@ export default function PrefeiturasPage() {
       />
 
       {idCliente && clienteSel && (
-        <NfseDistribuirModal
-          open={nfseDistrOpen}
-          onClose={() => setNfseDistrOpen(false)}
-          idCliente={idCliente}
-          nomeCliente={clienteSel.razao_social}
-        />
+        <>
+          <NfseDistribuirModal
+            open={nfseDistrOpen}
+            onClose={() => setNfseDistrOpen(false)}
+            idCliente={idCliente}
+            nomeCliente={clienteSel.razao_social}
+          />
+          <NfseConsultarChaveModal
+            open={nfseChaveOpen}
+            onClose={() => setNfseChaveOpen(false)}
+            idCliente={idCliente}
+            nomeCliente={clienteSel.razao_social}
+          />
+        </>
       )}
 
       <div className="bg-white border border-card-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
