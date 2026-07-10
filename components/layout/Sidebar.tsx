@@ -32,6 +32,14 @@ import {
   BarChart3,
   UserCircle2,
   Cog,
+  Percent,
+  PiggyBank,
+  Building,
+  Files,
+  FileArchive,
+  FileSpreadsheet,
+  UserCog,
+  FileLock2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -60,7 +68,10 @@ type Entry = { kind: "item"; item: Item } | { kind: "group"; group: Group };
 const item = (i: Item): Entry => ({ kind: "item", item: i });
 const group = (g: Group): Entry => ({ kind: "group", group: g });
 
-// Estrutura por área: itens standalone + grupos que abrem em cascata
+// Estrutura por área: itens standalone + grupos que abrem em cascata.
+// Cada módulo de /integracoes vive DENTRO da área contextual (eSocial→RH/DP,
+// SPED→Fiscal, NF-e→Contábil, etc). A tela-índice /integracoes fica em Sistema
+// como "visão geral" pra quem quer ver os cards agregados.
 const ENTRIES_INTERNO: Entry[] = [
   item({ href: "/inicio", label: "Início", icon: LayoutDashboard }),
   item({ href: "/clientes", label: "Clientes", icon: Users }),
@@ -74,9 +85,19 @@ const ENTRIES_INTERNO: Entry[] = [
       { href: "/apuracao", label: "Apuração", icon: Calculator },
       { href: "/nfe", label: "NF-e", icon: FileCode },
       {
+        href: "/integracoes/notas-fiscais",
+        label: "Notas Fiscais (integração)",
+        icon: Files,
+      },
+      {
         href: "/integracoes/nfse/recebidas",
         label: "Notas Fiscais Emitidas",
         icon: ReceiptText,
+      },
+      {
+        href: "/integracoes/prefeituras",
+        label: "Prefeituras / ISS",
+        icon: Building,
       },
     ],
   }),
@@ -89,6 +110,12 @@ const ENTRIES_INTERNO: Entry[] = [
       { href: "/pro-labore", label: "Pró-labore", icon: Briefcase },
       { href: "/decimo-terceiro", label: "13º salário", icon: Gift },
       { href: "/ferias", label: "Férias", icon: Plane },
+      { href: "/integracoes/esocial", label: "eSocial", icon: UserCog },
+      {
+        href: "/integracoes/fgts-digital",
+        label: "FGTS Digital",
+        icon: PiggyBank,
+      },
     ],
   }),
   group({
@@ -99,9 +126,25 @@ const ENTRIES_INTERNO: Entry[] = [
       { href: "/obrigacoes", label: "Obrigações", icon: CalendarCheck },
       { href: "/documentos", label: "Documentos", icon: FolderUp },
       { href: "/sessoes-ecac", label: "Sessões e-CAC", icon: ShieldCheck },
+      {
+        href: "/integracoes/receita-federal",
+        label: "Receita Federal",
+        icon: Landmark,
+      },
+      {
+        href: "/integracoes/efd-reinf",
+        label: "EFD-Reinf",
+        icon: FileArchive,
+      },
+      { href: "/integracoes/sped", label: "SPED", icon: FileSpreadsheet },
+      {
+        href: "/integracoes/simples-nacional",
+        label: "Simples Nacional",
+        icon: Percent,
+      },
+      { href: "/integracoes/redesim", label: "REDESIM", icon: Building },
     ],
   }),
-  item({ href: "/integracoes", label: "Integrações", icon: Globe2 }),
   item({ href: "/honorarios", label: "Honorários", icon: Wallet }),
   item({ href: "/produtividade", label: "Produtividade", icon: TrendingUp }),
   group({
@@ -109,6 +152,12 @@ const ENTRIES_INTERNO: Entry[] = [
     label: "Sistema",
     icon: Cog,
     items: [
+      { href: "/integracoes", label: "Integrações (visão geral)", icon: Globe2 },
+      {
+        href: "/integracoes/certificado-digital",
+        label: "Certificado Digital",
+        icon: FileLock2,
+      },
       { href: "/seguranca", label: "Segurança", icon: Shield },
       {
         href: "/usuarios",
@@ -129,10 +178,13 @@ const ITEMS_PORTAL: Item[] = [
   { href: "/portal/financeiro", label: "Financeiro", icon: Receipt },
 ];
 
-// Pathname bate com esse item? Trata "/inicio" e "/portal" como matches exatos
-// (senão tudo ficaria ativo).
+// Pathname bate com esse item? Trata rotas que têm sub-rotas siblings como
+// match exato — senão "Integrações (visão geral)" ficaria ativo em qualquer
+// /integracoes/xxx, competindo com o item específico do submódulo.
+const EXATOS = new Set(["/inicio", "/portal", "/integracoes"]);
+
 function isActiveHref(pathname: string, href: string): boolean {
-  if (href === "/inicio" || href === "/portal") return pathname === href;
+  if (EXATOS.has(href)) return pathname === href;
   return pathname === href || pathname.startsWith(href + "/");
 }
 
