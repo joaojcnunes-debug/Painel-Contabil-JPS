@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -27,6 +28,10 @@ import {
   Plane,
   Globe2,
   ReceiptText,
+  ChevronRight,
+  BarChart3,
+  UserCircle2,
+  Cog,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -36,36 +41,85 @@ import { useConfiguracao } from "@/lib/hooks/useConfiguracao";
 import { Logo } from "@/components/ui/Logo";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 
-type Item = { href: string; label: string; icon: React.ElementType };
+type Item = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  adminOnly?: boolean;
+};
 
-type ItemWithGuard = Item & { adminOnly?: boolean };
+type Group = {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  items: Item[];
+};
 
-const ITEMS_INTERNO: ItemWithGuard[] = [
-  { href: "/inicio", label: "Início", icon: LayoutDashboard },
-  { href: "/clientes", label: "Clientes", icon: Users },
-  { href: "/obrigacoes", label: "Obrigações", icon: CalendarCheck },
-  { href: "/documentos", label: "Documentos", icon: FolderUp },
-  { href: "/honorarios", label: "Honorários", icon: Wallet },
-  { href: "/lancamentos", label: "Lançamentos", icon: BookOpen },
-  { href: "/conciliacao", label: "Conciliação", icon: Landmark },
-  { href: "/apuracao", label: "Apuração", icon: Calculator },
-  { href: "/folha", label: "Folha", icon: Users2 },
-  { href: "/pro-labore", label: "Pró-labore", icon: Briefcase },
-  { href: "/decimo-terceiro", label: "13º salário", icon: Gift },
-  { href: "/ferias", label: "Férias", icon: Plane },
-  { href: "/nfe", label: "NF-e", icon: FileCode },
-  {
-    href: "/integracoes/nfse/recebidas",
-    label: "Notas Fiscais Emitidas",
-    icon: ReceiptText,
-  },
-  { href: "/integracoes", label: "Integrações", icon: Globe2 },
-  { href: "/sessoes-ecac", label: "Sessões e-CAC", icon: ShieldCheck },
-  { href: "/produtividade", label: "Produtividade", icon: TrendingUp },
-  { href: "/seguranca", label: "Segurança", icon: Shield },
-  { href: "/usuarios", label: "Usuários", icon: ShieldCheck, adminOnly: true },
-  { href: "/logs", label: "Logs", icon: History, adminOnly: true },
-  { href: "/config", label: "Configurações", icon: Settings },
+type Entry = { kind: "item"; item: Item } | { kind: "group"; group: Group };
+
+const item = (i: Item): Entry => ({ kind: "item", item: i });
+const group = (g: Group): Entry => ({ kind: "group", group: g });
+
+// Estrutura por área: itens standalone + grupos que abrem em cascata
+const ENTRIES_INTERNO: Entry[] = [
+  item({ href: "/inicio", label: "Início", icon: LayoutDashboard }),
+  item({ href: "/clientes", label: "Clientes", icon: Users }),
+  group({
+    key: "contabil",
+    label: "Contábil",
+    icon: BarChart3,
+    items: [
+      { href: "/lancamentos", label: "Lançamentos", icon: BookOpen },
+      { href: "/conciliacao", label: "Conciliação", icon: Landmark },
+      { href: "/apuracao", label: "Apuração", icon: Calculator },
+      { href: "/nfe", label: "NF-e", icon: FileCode },
+      {
+        href: "/integracoes/nfse/recebidas",
+        label: "Notas Fiscais Emitidas",
+        icon: ReceiptText,
+      },
+    ],
+  }),
+  group({
+    key: "rhdp",
+    label: "RH / DP",
+    icon: UserCircle2,
+    items: [
+      { href: "/folha", label: "Folha", icon: Users2 },
+      { href: "/pro-labore", label: "Pró-labore", icon: Briefcase },
+      { href: "/decimo-terceiro", label: "13º salário", icon: Gift },
+      { href: "/ferias", label: "Férias", icon: Plane },
+    ],
+  }),
+  group({
+    key: "fiscal",
+    label: "Fiscal",
+    icon: CalendarCheck,
+    items: [
+      { href: "/obrigacoes", label: "Obrigações", icon: CalendarCheck },
+      { href: "/documentos", label: "Documentos", icon: FolderUp },
+      { href: "/sessoes-ecac", label: "Sessões e-CAC", icon: ShieldCheck },
+    ],
+  }),
+  item({ href: "/integracoes", label: "Integrações", icon: Globe2 }),
+  item({ href: "/honorarios", label: "Honorários", icon: Wallet }),
+  item({ href: "/produtividade", label: "Produtividade", icon: TrendingUp }),
+  group({
+    key: "sistema",
+    label: "Sistema",
+    icon: Cog,
+    items: [
+      { href: "/seguranca", label: "Segurança", icon: Shield },
+      {
+        href: "/usuarios",
+        label: "Usuários",
+        icon: ShieldCheck,
+        adminOnly: true,
+      },
+      { href: "/logs", label: "Logs", icon: History, adminOnly: true },
+      { href: "/config", label: "Configurações", icon: Settings },
+    ],
+  }),
 ];
 
 const ITEMS_PORTAL: Item[] = [
@@ -75,6 +129,19 @@ const ITEMS_PORTAL: Item[] = [
   { href: "/portal/financeiro", label: "Financeiro", icon: Receipt },
 ];
 
+// Pathname bate com esse item? Trata "/inicio" e "/portal" como matches exatos
+// (senão tudo ficaria ativo).
+function isActiveHref(pathname: string, href: string): boolean {
+  if (href === "/inicio" || href === "/portal") return pathname === href;
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+// Retorna true se algum item filho do grupo está ativo — usado pra
+// auto-expandir o grupo na entrada da página.
+function groupHasActive(pathname: string, g: Group): boolean {
+  return g.items.some((i) => isActiveHref(pathname, i.href));
+}
+
 export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -82,10 +149,49 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
   const logout = useUserStore((s) => s.logout);
   const { data: cfg } = useConfiguracao();
 
-  const items =
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Filtra itens adminOnly de grupos + entradas standalone
+  const entries: Entry[] =
     variant === "interno"
-      ? ITEMS_INTERNO.filter((it) => !it.adminOnly || user?.perfil === "Admin")
-      : ITEMS_PORTAL;
+      ? ENTRIES_INTERNO.map((e) => {
+          if (e.kind === "item") {
+            return e.item.adminOnly && user?.perfil !== "Admin" ? null : e;
+          }
+          const filtered = e.group.items.filter(
+            (i) => !i.adminOnly || user?.perfil === "Admin"
+          );
+          if (filtered.length === 0) return null;
+          return group({ ...e.group, items: filtered });
+        }).filter((e): e is Entry => e !== null)
+      : [];
+
+  // Auto-expande grupos cujo item ativo bate com pathname atual
+  useEffect(() => {
+    if (variant !== "interno") return;
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const e of ENTRIES_INTERNO) {
+        if (e.kind === "group" && groupHasActive(pathname, e.group)) {
+          if (!next.has(e.group.key)) {
+            next.add(e.group.key);
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [pathname, variant]);
+
+  function toggleGroup(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
@@ -111,29 +217,31 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
       </div>
 
       <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-        {items.map((it) => {
-          const active =
-            it.href === pathname ||
-            (it.href !== "/inicio" &&
-              it.href !== "/portal" &&
-              pathname.startsWith(it.href));
-          const Icon = it.icon;
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition",
-                active
-                  ? "bg-verde-light text-verde-dark font-medium"
-                  : "text-gray-700 hover:bg-gray-50"
-              )}
-            >
-              <Icon size={18} />
-              {it.label}
-            </Link>
-          );
-        })}
+        {variant === "portal"
+          ? ITEMS_PORTAL.map((it) => (
+              <SidebarItem
+                key={it.href}
+                item={it}
+                active={isActiveHref(pathname, it.href)}
+              />
+            ))
+          : entries.map((e) =>
+              e.kind === "item" ? (
+                <SidebarItem
+                  key={e.item.href}
+                  item={e.item}
+                  active={isActiveHref(pathname, e.item.href)}
+                />
+              ) : (
+                <SidebarGroup
+                  key={e.group.key}
+                  group={e.group}
+                  pathname={pathname}
+                  isOpen={expanded.has(e.group.key)}
+                  onToggle={() => toggleGroup(e.group.key)}
+                />
+              )
+            )}
       </nav>
 
       <div className="p-3 border-t border-card-border">
@@ -155,5 +263,82 @@ export function Sidebar({ variant }: { variant: "interno" | "portal" }) {
         </button>
       </div>
     </aside>
+  );
+}
+
+function SidebarItem({
+  item,
+  active,
+  nested,
+}: {
+  item: Item;
+  active: boolean;
+  nested?: boolean;
+}) {
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition",
+        nested && "ml-6 pl-2 py-1.5 text-[13px]",
+        active
+          ? "bg-verde-light text-verde-dark font-medium"
+          : "text-gray-700 hover:bg-gray-50"
+      )}
+    >
+      <Icon size={nested ? 14 : 18} />
+      {item.label}
+    </Link>
+  );
+}
+
+function SidebarGroup({
+  group,
+  pathname,
+  isOpen,
+  onToggle,
+}: {
+  group: Group;
+  pathname: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = group.icon;
+  const hasActive = groupHasActive(pathname, group);
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={cn(
+          "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition",
+          hasActive
+            ? "text-verde-dark font-medium"
+            : "text-gray-700 hover:bg-gray-50"
+        )}
+      >
+        <Icon size={18} />
+        <span className="flex-1 text-left">{group.label}</span>
+        <ChevronRight
+          size={14}
+          className={cn(
+            "transition-transform text-gray-400",
+            isOpen && "rotate-90"
+          )}
+        />
+      </button>
+      {isOpen && (
+        <div className="mt-0.5 space-y-0.5 border-l border-card-border ml-4">
+          {group.items.map((it) => (
+            <SidebarItem
+              key={it.href}
+              item={it}
+              active={isActiveHref(pathname, it.href)}
+              nested
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
