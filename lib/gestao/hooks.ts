@@ -1033,6 +1033,189 @@ export async function checaPodeConcluir(idTarefa: string): Promise<boolean> {
   return !!data;
 }
 
+// ─── Automações ────────────────────────────────────────────────
+export function useAutomacoes(idQuadro: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "automacoes", idQuadro ?? "none"],
+    enabled: !!idQuadro,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_automacoes")
+        .select("*")
+        .eq("id_quadro", idQuadro!)
+        .order("ordem");
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoAutomacao[];
+    },
+  });
+}
+
+export function useSalvarAutomacao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      dados: Partial<import("./types").GestaoAutomacao> & {
+        nome: string;
+        gatilho: import("./types").GatilhoAutomacao;
+        id_quadro: string;
+        acao: import("./types").GestaoAutomacao["acao"];
+      }
+    ) => {
+      const supabase = createSupabaseBrowserClient();
+      if (dados.id) {
+        const { error } = await supabase
+          .from("gestao_automacoes")
+          .update({
+            nome: dados.nome,
+            ativo: dados.ativo ?? true,
+            gatilho: dados.gatilho,
+            condicao: dados.condicao ?? {},
+            acao: dados.acao,
+            ordem: dados.ordem ?? 0,
+          } as never)
+          .eq("id", dados.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("gestao_automacoes").insert({
+        id_quadro: dados.id_quadro,
+        nome: dados.nome,
+        ativo: dados.ativo ?? true,
+        gatilho: dados.gatilho,
+        condicao: dados.condicao ?? {},
+        acao: dados.acao,
+        ordem: dados.ordem ?? 0,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "automacoes", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirAutomacao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_quadro: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_automacoes").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "automacoes", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Formulários públicos ─────────────────────────────────────
+export function useFormulariosQuadro(idQuadro: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "formularios", idQuadro ?? "none"],
+    enabled: !!idQuadro,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_formularios")
+        .select("*")
+        .eq("id_quadro", idQuadro!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoFormulario[];
+    },
+  });
+}
+
+export function useSalvarFormulario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      dados: Partial<import("./types").GestaoFormulario> & {
+        titulo: string;
+        id_quadro: string;
+        token: string;
+      }
+    ) => {
+      const supabase = createSupabaseBrowserClient();
+      if (dados.id) {
+        const { error } = await supabase
+          .from("gestao_formularios")
+          .update({
+            titulo: dados.titulo,
+            descricao: dados.descricao ?? null,
+            ativo: dados.ativo ?? true,
+            mostra_descricao: dados.mostra_descricao ?? true,
+            mostra_prazo: dados.mostra_prazo ?? false,
+            mostra_prioridade: dados.mostra_prioridade ?? false,
+            prioridade_padrao: dados.prioridade_padrao ?? "Media",
+            status_inicial: dados.status_inicial ?? null,
+            responsavel_padrao: dados.responsavel_padrao ?? null,
+            etiquetas_padrao: dados.etiquetas_padrao ?? [],
+            perguntas: dados.perguntas ?? [],
+          } as never)
+          .eq("id", dados.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("gestao_formularios").insert({
+        id_quadro: dados.id_quadro,
+        titulo: dados.titulo,
+        descricao: dados.descricao ?? null,
+        token: dados.token,
+        ativo: dados.ativo ?? true,
+        mostra_descricao: dados.mostra_descricao ?? true,
+        mostra_prazo: dados.mostra_prazo ?? false,
+        mostra_prioridade: dados.mostra_prioridade ?? false,
+        prioridade_padrao: dados.prioridade_padrao ?? "Media",
+        status_inicial: dados.status_inicial ?? null,
+        responsavel_padrao: dados.responsavel_padrao ?? null,
+        etiquetas_padrao: dados.etiquetas_padrao ?? [],
+        perguntas: dados.perguntas ?? [],
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "formularios", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirFormulario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_quadro: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_formularios").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "formularios", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── ICS token do quadro (feed calendário) ────────────────────
+export function useDefinirIcsToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id_quadro: string; token: string | null }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("gestao_quadros")
+        .update({ ics_token: input.token } as never)
+        .eq("id_quadro", input.id_quadro);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["gestao", "quadros"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 // Utility client-side pra escolher a prioridade default
 export function proximaPrioridade(p: PrioridadeTarefa): PrioridadeTarefa {
   const seq: PrioridadeTarefa[] = ["Baixa", "Media", "Alta", "Urgente"];

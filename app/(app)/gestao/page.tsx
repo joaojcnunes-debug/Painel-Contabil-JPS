@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Calendar as CalIcon,
+  CalendarDays,
+  FileInput,
   LayoutGrid,
   LineChart,
   List,
@@ -11,6 +13,7 @@ import {
   Plus,
   ShieldOff,
   BarChart3,
+  Zap,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -24,6 +27,9 @@ import { PainelGestao } from "@/components/gestao/PainelGestao";
 import { FiltrosPanel } from "@/components/gestao/FiltrosPanel";
 import { TarefaModal } from "@/components/gestao/TarefaModal";
 import { NovoRecursoModal } from "@/components/gestao/NovoRecursoModal";
+import { AutomacoesManagerModal } from "@/components/gestao/AutomacoesManagerModal";
+import { FormulariosManagerModal } from "@/components/gestao/FormulariosManagerModal";
+import { CalendarioModal } from "@/components/gestao/CalendarioModal";
 import {
   useEspacos,
   usePastas,
@@ -124,6 +130,10 @@ export default function GestaoPage() {
   const [novoRecurso, setNovoRecurso] = useState<
     | null
     | { tipo: "espaco" | "pasta" | "quadro"; idEspaco?: string; idPasta?: string }
+  >(null);
+
+  const [modalAberto, setModalAberto] = useState<
+    "automacoes" | "formularios" | "calendario" | null
   >(null);
 
   const quadroAtual = useMemo(
@@ -250,8 +260,35 @@ export default function GestaoPage() {
                     <p className="text-xs text-gray-500 mt-1">{quadroAtual.descricao}</p>
                   )}
                 </div>
-                <div className="text-[11px] text-gray-500">
-                  {tarefas.length} tarefa(s) · {status.length} status
+                <div className="flex items-center gap-2">
+                  {souGestor && (
+                    <>
+                      <button
+                        onClick={() => setModalAberto("automacoes")}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded border border-card-border text-[11px] text-gray-700 hover:border-verde-primary hover:text-verde-primary"
+                        title="Automações do quadro"
+                      >
+                        <Zap size={11} /> Automações
+                      </button>
+                      <button
+                        onClick={() => setModalAberto("formularios")}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded border border-card-border text-[11px] text-gray-700 hover:border-verde-primary hover:text-verde-primary"
+                        title="Formulários públicos"
+                      >
+                        <FileInput size={11} /> Formulários
+                      </button>
+                      <button
+                        onClick={() => setModalAberto("calendario")}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded border border-card-border text-[11px] text-gray-700 hover:border-verde-primary hover:text-verde-primary"
+                        title="Link .ics pra Google/Outlook"
+                      >
+                        <CalendarDays size={11} /> Calendário
+                      </button>
+                    </>
+                  )}
+                  <div className="text-[11px] text-gray-500">
+                    {tarefas.length} tarefa(s) · {status.length} status
+                  </div>
                 </div>
               </div>
 
@@ -376,6 +413,30 @@ export default function GestaoPage() {
           )}
         </div>
       </div>
+
+      {quadroSel && quadroAtual && modalAberto === "automacoes" && (
+        <AutomacoesManagerModal
+          open={true}
+          onClose={() => setModalAberto(null)}
+          idQuadro={quadroSel}
+        />
+      )}
+      {quadroSel && quadroAtual && modalAberto === "formularios" && (
+        <FormulariosManagerModal
+          open={true}
+          onClose={() => setModalAberto(null)}
+          idQuadro={quadroSel}
+        />
+      )}
+      {quadroSel && quadroAtual && modalAberto === "calendario" && (
+        <CalendarioModal
+          open={true}
+          onClose={() => setModalAberto(null)}
+          idQuadro={quadroSel}
+          nomeQuadro={quadroAtual.nome}
+          icsToken={quadroAtual.ics_token}
+        />
+      )}
 
       {novoRecurso && (
         <NovoRecursoModal

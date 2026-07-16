@@ -323,6 +323,88 @@ export function totalSegundos(regs: GestaoTempo[]): number {
   return s;
 }
 
+export type GatilhoAutomacao =
+  | "status_muda"
+  | "tarefa_criada"
+  | "prazo_proximo"
+  | "prazo_vencido";
+
+export type AcaoAutomacaoTipo =
+  | "mover_status"
+  | "definir_responsavel"
+  | "definir_prioridade"
+  | "definir_campo"
+  | "notificar";
+
+export const GATILHOS_LABEL: Record<GatilhoAutomacao, string> = {
+  status_muda: "Quando o status mudar",
+  tarefa_criada: "Quando uma tarefa é criada",
+  prazo_proximo: "Quando faltar N dias pro prazo",
+  prazo_vencido: "Quando o prazo vencer",
+};
+
+export const ACOES_LABEL: Record<AcaoAutomacaoTipo, string> = {
+  mover_status: "Mover pra status",
+  definir_responsavel: "Definir responsável",
+  definir_prioridade: "Definir prioridade",
+  definir_campo: "Definir campo personalizado",
+  notificar: "Enviar notificação",
+};
+
+export type GestaoAutomacao = {
+  id: string;
+  id_quadro: string;
+  nome: string;
+  ativo: boolean;
+  gatilho: GatilhoAutomacao;
+  condicao: Record<string, unknown>;
+  acao: {
+    tipo: AcaoAutomacaoTipo;
+    valor?: unknown;
+    para?: string;
+    mensagem?: string;
+  };
+  ordem: number;
+  created_at: string;
+};
+
+export type PerguntaFormulario = {
+  id: string;
+  label: string;
+  tipo: "texto" | "textarea" | "email" | "selecao";
+  obrigatoria: boolean;
+  opcoes?: string[];
+};
+
+export type GestaoFormulario = {
+  id: string;
+  id_quadro: string;
+  titulo: string;
+  descricao: string | null;
+  token: string;
+  ativo: boolean;
+  mostra_descricao: boolean;
+  mostra_prazo: boolean;
+  mostra_prioridade: boolean;
+  prioridade_padrao: PrioridadeTarefa;
+  status_inicial: string | null;
+  responsavel_padrao: string | null;
+  etiquetas_padrao: string[];
+  perguntas: PerguntaFormulario[];
+  created_by: string | null;
+  created_at: string;
+};
+
+export function novoToken(bytes = 12): string {
+  const arr = new Uint8Array(bytes);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(arr);
+  } else {
+    for (let i = 0; i < bytes; i++) arr[i] = Math.floor(Math.random() * 256);
+  }
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export type GestaoMembro = {
   id: string;
   usuario_email: string;
