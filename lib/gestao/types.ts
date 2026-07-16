@@ -262,6 +262,67 @@ export function formatarBytes(b: number | null | undefined): string {
   return `${(b / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)} ${sizes[i]}`;
 }
 
+export type GestaoNotificacao = {
+  id: string;
+  destinatario: string;
+  tipo: "atribuicao" | "comentario" | "mencao" | "status" | "prazo";
+  titulo: string;
+  id_tarefa: string | null;
+  id_quadro: string | null;
+  lida: boolean;
+  canal: string;
+  email_enviado: boolean;
+  created_at: string;
+};
+
+export type GestaoTempo = {
+  id: string;
+  id_tarefa: string;
+  usuario_email: string;
+  inicio: string;
+  fim: string | null;
+  segundos: number | null;
+  manual: boolean;
+  descricao: string | null;
+  created_at: string;
+};
+
+export type GestaoDependencia = {
+  id: string;
+  id_tarefa: string;
+  depende_de: string;
+  created_at: string;
+};
+
+export type GestaoAtividade = {
+  id: string;
+  ator: string | null;
+  acao: string;
+  id_tarefa: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export function formatarDuracao(seg: number | null | undefined): string {
+  if (!seg || seg <= 0) return "0min";
+  const h = Math.floor(seg / 3600);
+  const m = Math.floor((seg % 3600) / 60);
+  if (h > 0) return `${h}h${m > 0 ? ` ${m}min` : ""}`;
+  return `${m}min`;
+}
+
+export function totalSegundos(regs: GestaoTempo[]): number {
+  let s = 0;
+  const agora = Date.now();
+  for (const r of regs) {
+    if (r.fim && r.segundos != null) s += r.segundos;
+    else if (!r.fim && r.inicio) {
+      s += Math.floor((agora - new Date(r.inicio).getTime()) / 1000);
+    }
+  }
+  return s;
+}
+
 export type GestaoMembro = {
   id: string;
   usuario_email: string;

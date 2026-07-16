@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Bell,
   CalendarCheck,
+  ClipboardList,
   FileCode,
   FileLock2,
   FileText,
@@ -29,6 +30,7 @@ const TIPO_ICON: Record<NotificationItem["tipo"], React.ElementType> = {
   sessao_ecac: ShieldCheck,
   certificado: FileLock2,
   nfe: FileCode,
+  gestao: ClipboardList,
 };
 
 function formatRelativo(iso: string) {

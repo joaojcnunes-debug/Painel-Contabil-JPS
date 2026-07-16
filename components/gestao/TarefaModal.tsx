@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  Clock,
   Download,
+  Link2,
   Loader2,
   MessageSquare,
   Paperclip,
@@ -40,9 +42,12 @@ import type {
 } from "@/lib/gestao/types";
 import { formatarBytes, iniciais, corAvatar } from "@/lib/gestao/types";
 import { CampoInput } from "./CampoInput";
+import { TempoTracker } from "./TempoTracker";
+import { DependenciasSection } from "./DependenciasSection";
 import { useUserStore } from "@/lib/store";
+import { useDependencias, checaPodeConcluir } from "@/lib/gestao/hooks";
 
-type Aba = "detalhes" | "campos" | "comentarios" | "anexos";
+type Aba = "detalhes" | "campos" | "tempo" | "deps" | "comentarios" | "anexos";
 
 type Props = {
   open: boolean;
@@ -69,6 +74,7 @@ export function TarefaModal({
   const { data: etiquetasCatalogo = [] } = useEtiquetasQuadro(idQuadro);
   const { data: comentarios = [] } = useComentarios(tarefa?.id_tarefa ?? null);
   const { data: anexos = [] } = useAnexos(tarefa?.id_tarefa ?? null);
+  const { data: dependencias = [] } = useDependencias(tarefa?.id_tarefa ?? null);
 
   const [aba, setAba] = useState<Aba>("detalhes");
   const [titulo, setTitulo] = useState("");
@@ -95,10 +101,28 @@ export function TarefaModal({
     setCamposValores((tarefa?.campos as Record<string, unknown>) ?? {});
   }, [open, tarefa, statusInicial, status]);
 
-  function onSubmit(e?: FormEvent) {
+  async function onSubmit(e?: FormEvent) {
     e?.preventDefault();
     if (!titulo.trim()) return;
-    // Persiste também os campos personalizados (o hook aceita "campos" via update genérico)
+
+    // Bloqueia mudar pra status "concluido" se houver dependência aberta
+    const virarConcluido = status.find((s) => s.slug === statusSel)?.tipo === "concluido";
+    const jaEraConcluido = tarefa
+      ? status.find((s) => s.slug === tarefa.status)?.tipo === "concluido"
+      : false;
+    if (virarConcluido && !jaEraConcluido && tarefa?.id_tarefa) {
+      const pode = await checaPodeConcluir(tarefa.id_tarefa);
+      if (!pode) {
+        setAba("deps");
+        // toast direto pra ficar óbvio o motivo do bloqueio
+        const { default: toast } = await import("react-hot-toast");
+        toast.error(
+          "Não é possível concluir — há dependências abertas nesta tarefa"
+        );
+        return;
+      }
+    }
+
     salvar.mutate(
       {
         id_tarefa: tarefa?.id_tarefa,
@@ -128,6 +152,8 @@ export function TarefaModal({
   const abaLabel: Record<Aba, string> = {
     detalhes: isEdit ? "Detalhes" : "Nova tarefa",
     campos: `Campos${campos.length > 0 ? ` (${campos.length})` : ""}`,
+    tempo: "Tempo",
+    deps: `Depend.${dependencias.length > 0 ? ` (${dependencias.length})` : ""}`,
     comentarios: `Comentários${comentarios.length > 0 ? ` (${comentarios.length})` : ""}`,
     anexos: `Anexos${anexos.length > 0 ? ` (${anexos.length})` : ""}`,
   };
@@ -175,6 +201,22 @@ export function TarefaModal({
           disabled={campos.length === 0 && !isEdit}
         >
           {abaLabel.campos}
+        </TabBtn>
+        <TabBtn
+          ativa={aba === "tempo"}
+          onClick={() => setAba("tempo")}
+          icon={Clock}
+          disabled={!isEdit}
+        >
+          {abaLabel.tempo}
+        </TabBtn>
+        <TabBtn
+          ativa={aba === "deps"}
+          onClick={() => setAba("deps")}
+          icon={Link2}
+          disabled={!isEdit}
+        >
+          {abaLabel.deps}
         </TabBtn>
         <TabBtn
           ativa={aba === "comentarios"}
@@ -342,6 +384,18 @@ export function TarefaModal({
             </div>
           )}
         </div>
+      )}
+
+      {aba === "tempo" && tarefa && (
+        <TempoTracker idTarefa={tarefa.id_tarefa} usuarioEmail={user?.email ?? null} />
+      )}
+
+      {aba === "deps" && tarefa && (
+        <DependenciasSection
+          idTarefa={tarefa.id_tarefa}
+          idQuadro={idQuadro}
+          status={status}
+        />
       )}
 
       {aba === "comentarios" && tarefa && (

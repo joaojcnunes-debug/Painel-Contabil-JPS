@@ -5,7 +5,14 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type NotificationItem = {
   id: string;
-  tipo: "obrigacao" | "documento" | "fatura" | "sessao_ecac" | "certificado" | "nfe";
+  tipo:
+    | "obrigacao"
+    | "documento"
+    | "fatura"
+    | "sessao_ecac"
+    | "certificado"
+    | "nfe"
+    | "gestao";
   titulo: string;
   subtitulo: string;
   href: string;
@@ -422,6 +429,39 @@ export function useNotifications(
                   : `Mais antiga: ${g.dias_max}d desde emissão`,
             href: `/integracoes/notas-fiscais/recebidas?cliente=${id_cliente}&sem_manif=1`,
             data: g.mais_antiga,
+            prioridade: prio,
+          });
+        }
+      }
+
+      // 8) Notificações do módulo Gestão (equipe + qualquer usuário que
+      //    seja membro; a RLS filtra automaticamente pelo destinatario=email)
+      if (perfil) {
+        const { data: gestaoNotifs } = await supabase
+          .from("gestao_notificacoes")
+          .select("id, tipo, titulo, id_tarefa, id_quadro, created_at")
+          .eq("lida", false)
+          .order("created_at", { ascending: false })
+          .limit(15);
+
+        type NotifGestao = {
+          id: string;
+          tipo: string;
+          titulo: string;
+          id_tarefa: string | null;
+          id_quadro: string | null;
+          created_at: string;
+        };
+        for (const n of (gestaoNotifs ?? []) as NotifGestao[]) {
+          const prio: "alta" | "media" | "baixa" =
+            n.tipo === "prazo" || n.tipo === "mencao" ? "alta" : "media";
+          items.push({
+            id: `gestao-${n.id}`,
+            tipo: "gestao",
+            titulo: n.titulo,
+            subtitulo: `Gestão · ${n.tipo}`,
+            href: "/gestao",
+            data: n.created_at,
             prioridade: prio,
           });
         }

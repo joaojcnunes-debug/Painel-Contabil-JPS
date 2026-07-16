@@ -801,6 +801,238 @@ export function useSalvarPreferenciaVisao() {
   });
 }
 
+// ─── Notificações do módulo Gestão ────────────────────────────
+export function useGestaoNotificacoes(email: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "notif", email ?? "anon"],
+    enabled: !!email,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_notificacoes")
+        .select("*")
+        .eq("lida", false)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoNotificacao[];
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useMarcarNotifLida() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; email: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("gestao_notificacoes")
+        .update({ lida: true } as never)
+        .eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "notif", vars.email] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// ─── Tempo (cronômetro + apontamento manual) ──────────────────
+export function useTempoTarefa(idTarefa: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "tempo", idTarefa ?? "none"],
+    enabled: !!idTarefa,
+    refetchInterval: 30_000, // atualiza pra timers rodando
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_tempo")
+        .select("*")
+        .eq("id_tarefa", idTarefa!)
+        .order("inicio", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoTempo[];
+    },
+  });
+}
+
+// Timer ativo do usuário atual (qualquer tarefa)
+export function useTimerAtivo(email: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "timer-ativo", email ?? "anon"],
+    enabled: !!email,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase
+        .from("gestao_tempo")
+        .select("*")
+        .is("fim", null)
+        .order("inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data as unknown as import("./types").GestaoTempo) ?? null;
+    },
+  });
+}
+
+export function useIniciarTempo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id_tarefa: string; usuario_email: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      // Fecha timer aberto anterior (se houver)
+      await supabase
+        .from("gestao_tempo")
+        .update({ fim: new Date().toISOString() } as never)
+        .eq("usuario_email", input.usuario_email)
+        .is("fim", null);
+      const { error } = await supabase.from("gestao_tempo").insert({
+        id_tarefa: input.id_tarefa,
+        usuario_email: input.usuario_email,
+        inicio: new Date().toISOString(),
+        manual: false,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "tempo", vars.id_tarefa] });
+      qc.invalidateQueries({ queryKey: ["gestao", "timer-ativo", vars.usuario_email] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function usePararTempo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      id_tarefa: string;
+      usuario_email: string;
+    }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("gestao_tempo")
+        .update({ fim: new Date().toISOString() } as never)
+        .eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "tempo", vars.id_tarefa] });
+      qc.invalidateQueries({ queryKey: ["gestao", "timer-ativo", vars.usuario_email] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useAddTempoManual() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id_tarefa: string;
+      usuario_email: string;
+      inicio: string;
+      fim: string;
+      descricao?: string;
+    }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_tempo").insert({
+        id_tarefa: input.id_tarefa,
+        usuario_email: input.usuario_email,
+        inicio: input.inicio,
+        fim: input.fim,
+        manual: true,
+        descricao: input.descricao ?? null,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "tempo", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirTempo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_tarefa: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_tempo").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "tempo", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Dependências ─────────────────────────────────────────────
+export function useDependencias(idTarefa: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "deps", idTarefa ?? "none"],
+    enabled: !!idTarefa,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_dependencias")
+        .select("*")
+        .eq("id_tarefa", idTarefa!);
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoDependencia[];
+    },
+  });
+}
+
+export function useAddDependencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id_tarefa: string; depende_de: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_dependencias").insert({
+        id_tarefa: input.id_tarefa,
+        depende_de: input.depende_de,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "deps", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirDependencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_tarefa: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_dependencias").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "deps", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// Retorna true se as dependências permitem concluir esta tarefa
+export async function checaPodeConcluir(idTarefa: string): Promise<boolean> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase.rpc(
+    "gestao_pode_concluir" as never,
+    { p_id_tarefa: idTarefa } as never
+  );
+  if (error) return true; // fallback permissivo se RPC falhar
+  return !!data;
+}
+
 // Utility client-side pra escolher a prioridade default
 export function proximaPrioridade(p: PrioridadeTarefa): PrioridadeTarefa {
   const seq: PrioridadeTarefa[] = ["Baixa", "Media", "Alta", "Urgente"];
