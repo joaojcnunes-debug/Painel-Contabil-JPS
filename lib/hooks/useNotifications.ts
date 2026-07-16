@@ -356,6 +356,77 @@ export function useNotifications(
         }
       }
 
+      // 7) NFe sem manifestação (só equipe) — prazo SEFAZ é 180d, alerta
+      //    escalonado: >30d = baixa, >90d = média, >150d = alta (crítico).
+      //    Só entra no radar quando passa dos 30 dias (antes disso ainda dá
+      //    tempo sem pressão).
+      if (ehEquipe) {
+        const em30 = new Date(Date.now() - 30 * HORAS_24).toISOString();
+        // 1 chamada só, mais recentes primeiro; ordena/agrupa em memória
+        const { data: pendManif } = await supabase
+          .from("nfe_dfe_recebidas")
+          .select(
+            "chave, id_cliente, numero, valor_total, dh_emissao, emitente_nome, clientes(razao_social)"
+          )
+          .is("status_manifestacao", null)
+          .not("dh_emissao", "is", null)
+          .lte("dh_emissao", em30)
+          .order("dh_emissao", { ascending: true })
+          .limit(50);
+
+        type ManifRow = {
+          chave: string;
+          id_cliente: string;
+          numero: string | null;
+          valor_total: number | null;
+          dh_emissao: string;
+          emitente_nome: string | null;
+          clientes: { razao_social: string } | null;
+        };
+        const rows = (pendManif ?? []) as ManifRow[];
+
+        // Agrupa por cliente — 1 item de notificação por cliente
+        const porCliente = new Map<
+          string,
+          { cliente_nome: string; qtd: number; mais_antiga: string; dias_max: number }
+        >();
+        for (const r of rows) {
+          const cliNome = r.clientes?.razao_social ?? "—";
+          const dias = Math.floor(
+            (Date.now() - new Date(r.dh_emissao).getTime()) / 86400000
+          );
+          const g = porCliente.get(r.id_cliente) ?? {
+            cliente_nome: cliNome,
+            qtd: 0,
+            mais_antiga: r.dh_emissao,
+            dias_max: 0,
+          };
+          g.qtd += 1;
+          if (r.dh_emissao < g.mais_antiga) g.mais_antiga = r.dh_emissao;
+          if (dias > g.dias_max) g.dias_max = dias;
+          porCliente.set(r.id_cliente, g);
+        }
+
+        for (const [id_cliente, g] of porCliente.entries()) {
+          const prio: "alta" | "media" | "baixa" =
+            g.dias_max >= 150 ? "alta" : g.dias_max >= 90 ? "media" : "baixa";
+          items.push({
+            id: `nfe-manif-${id_cliente}`,
+            tipo: "nfe",
+            titulo: `${g.qtd} NFe sem manif. • ${g.cliente_nome}`,
+            subtitulo:
+              g.dias_max >= 150
+                ? `Mais antiga: ${g.dias_max}d — prazo 180d!`
+                : g.dias_max >= 90
+                  ? `Mais antiga: ${g.dias_max}d — atenção`
+                  : `Mais antiga: ${g.dias_max}d desde emissão`,
+            href: `/integracoes/notas-fiscais/recebidas?cliente=${id_cliente}&sem_manif=1`,
+            data: g.mais_antiga,
+            prioridade: prio,
+          });
+        }
+      }
+
       // Ordena: alta primeiro, depois data
       items.sort((a, b) => {
         const pa = a.prioridade === "alta" ? 0 : a.prioridade === "media" ? 1 : 2;
