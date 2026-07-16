@@ -674,6 +674,133 @@ export async function urlAssinadaAnexo(storage_path: string): Promise<string> {
   return data.signedUrl;
 }
 
+// ─── Filtros salvos ───────────────────────────────────────────
+export function useFiltrosSalvos(idQuadro: string | null, email: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "filtros", idQuadro ?? "none", email ?? "anon"],
+    enabled: !!idQuadro && !!email,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_filtros_salvos")
+        .select("*")
+        .eq("id_quadro", idQuadro!)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        id: string;
+        usuario_email: string;
+        id_quadro: string;
+        nome: string;
+        criterios: import("./types").FiltrosGestao;
+        created_at: string;
+      }>;
+    },
+  });
+}
+
+export function useSalvarFiltro() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id_quadro: string;
+      usuario_email: string;
+      nome: string;
+      criterios: import("./types").FiltrosGestao;
+    }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_filtros_salvos").insert({
+        id_quadro: input.id_quadro,
+        usuario_email: input.usuario_email,
+        nome: input.nome,
+        criterios: input.criterios,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["gestao", "filtros", vars.id_quadro, vars.usuario_email],
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirFiltro() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_quadro: string; usuario_email: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("gestao_filtros_salvos")
+        .delete()
+        .eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["gestao", "filtros", vars.id_quadro, vars.usuario_email],
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Preferência de visão por (usuario, quadro) ───────────────
+export function usePreferenciaVisao(idQuadro: string | null, email: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "pref", idQuadro ?? "none", email ?? "anon"],
+    enabled: !!idQuadro && !!email,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase
+        .from("gestao_preferencias_visao")
+        .select("vista, agrupar_por, config")
+        .eq("id_quadro", idQuadro!)
+        .maybeSingle();
+      return (data ?? null) as {
+        vista: import("./types").VistaGestao;
+        agrupar_por: import("./types").AgruparPor | null;
+        config: Record<string, unknown>;
+      } | null;
+    },
+  });
+}
+
+export function useSalvarPreferenciaVisao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id_quadro: string;
+      usuario_email: string;
+      vista?: import("./types").VistaGestao;
+      agrupar_por?: import("./types").AgruparPor | null;
+      config?: Record<string, unknown>;
+    }) => {
+      const supabase = createSupabaseBrowserClient();
+      const payload = {
+        id_quadro: input.id_quadro,
+        usuario_email: input.usuario_email,
+        vista: input.vista ?? "quadro",
+        agrupar_por: input.agrupar_por ?? null,
+        config: input.config ?? {},
+      };
+      const { error } = await supabase
+        .from("gestao_preferencias_visao")
+        .upsert(payload as never, {
+          onConflict: "usuario_email,id_quadro",
+        });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({
+        queryKey: ["gestao", "pref", vars.id_quadro, vars.usuario_email],
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 // Utility client-side pra escolher a prioridade default
 export function proximaPrioridade(p: PrioridadeTarefa): PrioridadeTarefa {
   const seq: PrioridadeTarefa[] = ["Baixa", "Media", "Alta", "Urgente"];

@@ -1,11 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Lock, Plus, ShieldOff } from "lucide-react";
+import {
+  Calendar as CalIcon,
+  LayoutGrid,
+  LineChart,
+  List,
+  Loader2,
+  Lock,
+  Plus,
+  ShieldOff,
+  BarChart3,
+} from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 import { GestaoSidebar } from "@/components/gestao/GestaoSidebar";
 import { KanbanBoard } from "@/components/gestao/KanbanBoard";
+import { VistaLista } from "@/components/gestao/VistaLista";
+import { VistaCalendario } from "@/components/gestao/VistaCalendario";
+import { VistaTimeline } from "@/components/gestao/VistaTimeline";
+import { PainelGestao } from "@/components/gestao/PainelGestao";
+import { FiltrosPanel } from "@/components/gestao/FiltrosPanel";
 import { TarefaModal } from "@/components/gestao/TarefaModal";
 import { NovoRecursoModal } from "@/components/gestao/NovoRecursoModal";
 import {
@@ -22,10 +38,34 @@ import {
   useExcluirPasta,
   useExcluirQuadro,
   useMoverTarefa,
+  usePreferenciaVisao,
+  useSalvarPreferenciaVisao,
+  useFiltrosSalvos,
+  useSalvarFiltro,
+  useExcluirFiltro,
 } from "@/lib/gestao/hooks";
-import type { GestaoTarefa } from "@/lib/gestao/types";
+import {
+  filtrarTarefas,
+  VISTAS,
+  VISTAS_LABEL,
+  type AgruparPor,
+  type FiltrosGestao,
+  type GestaoTarefa,
+  type VistaGestao,
+} from "@/lib/gestao/types";
+import { useUserStore } from "@/lib/store";
+
+const ICONES_VISTA: Record<VistaGestao, React.ElementType> = {
+  quadro: LayoutGrid,
+  lista: List,
+  calendario: CalIcon,
+  timeline: LineChart,
+  painel: BarChart3,
+};
 
 export default function GestaoPage() {
+  const user = useUserStore((s) => s.user);
+  const email = user?.email ?? null;
   const { data: papel, isLoading: papelLoading } = useMeuPapelGestao();
   const naoMembro = !papelLoading && !papel;
   const souGestor = papel === "owner" || papel === "admin";
@@ -36,7 +76,6 @@ export default function GestaoPage() {
 
   const [quadroSel, setQuadroSel] = useState<string | null>(null);
 
-  // Auto-seleciona o primeiro quadro visível
   useEffect(() => {
     if (!quadroSel && quadros.length > 0) {
       setQuadroSel(quadros[0].id_quadro);
@@ -48,6 +87,25 @@ export default function GestaoPage() {
 
   const { data: status = [], isLoading: statusLoading } = useStatusQuadro(quadroSel);
   const { data: tarefas = [], isLoading: tarefasLoading } = useTarefas(quadroSel);
+
+  const { data: pref } = usePreferenciaVisao(quadroSel, email);
+  const salvarPref = useSalvarPreferenciaVisao();
+
+  const [vista, setVista] = useState<VistaGestao>("quadro");
+  const [agruparPor, setAgruparPor] = useState<AgruparPor>("status");
+  const [filtros, setFiltros] = useState<FiltrosGestao>({});
+
+  // Sincroniza com preferência persistida
+  useEffect(() => {
+    if (pref) {
+      setVista(pref.vista);
+      if (pref.agrupar_por) setAgruparPor(pref.agrupar_por);
+    }
+  }, [pref, quadroSel]);
+
+  const { data: filtrosSalvos = [] } = useFiltrosSalvos(quadroSel, email);
+  const salvarFiltro = useSalvarFiltro();
+  const excluirFiltro = useExcluirFiltro();
 
   const salvarEspaco = useSalvarEspaco();
   const salvarPasta = useSalvarPasta();
@@ -65,17 +123,41 @@ export default function GestaoPage() {
 
   const [novoRecurso, setNovoRecurso] = useState<
     | null
-    | {
-        tipo: "espaco" | "pasta" | "quadro";
-        idEspaco?: string;
-        idPasta?: string;
-      }
+    | { tipo: "espaco" | "pasta" | "quadro"; idEspaco?: string; idPasta?: string }
   >(null);
 
   const quadroAtual = useMemo(
     () => quadros.find((q) => q.id_quadro === quadroSel) ?? null,
     [quadros, quadroSel]
   );
+
+  const tarefasFiltradas = useMemo(
+    () => filtrarTarefas(tarefas, filtros),
+    [tarefas, filtros]
+  );
+
+  function persistirVista(v: VistaGestao) {
+    setVista(v);
+    if (email && quadroSel) {
+      salvarPref.mutate({
+        id_quadro: quadroSel,
+        usuario_email: email,
+        vista: v,
+        agrupar_por: agruparPor,
+      });
+    }
+  }
+  function persistirAgrupamento(a: AgruparPor) {
+    setAgruparPor(a);
+    if (email && quadroSel) {
+      salvarPref.mutate({
+        id_quadro: quadroSel,
+        usuario_email: email,
+        vista,
+        agrupar_por: a,
+      });
+    }
+  }
 
   if (papelLoading) {
     return (
@@ -95,8 +177,7 @@ export default function GestaoPage() {
           <div className="font-medium text-gray-800 mb-1">Sem acesso ao módulo</div>
           <div className="text-sm text-gray-500 max-w-md mx-auto">
             Peça pra um Admin ou owner do módulo Gestão te adicionar como
-            membro. Admins do sistema (perfil <code>Admin</code>) já entram
-            automaticamente.
+            membro. Admins do sistema já entram automaticamente.
           </div>
         </div>
       </div>
@@ -151,14 +232,15 @@ export default function GestaoPage() {
 
           {quadroSel && quadroAtual && (
             <>
-              <div className="mb-4 flex items-baseline justify-between gap-2 flex-wrap">
+              {/* Header do quadro */}
+              <div className="mb-3 flex items-baseline justify-between gap-2 flex-wrap">
                 <div>
                   <h2 className="font-serif text-xl text-verde-dark flex items-center gap-2">
                     {quadroAtual.nome}
                     {quadroAtual.restrito && (
                       <span
                         className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium"
-                        title="Quadro restrito — só membros com grant explícito acessam"
+                        title="Quadro restrito"
                       >
                         <Lock size={9} /> Restrito
                       </span>
@@ -173,18 +255,110 @@ export default function GestaoPage() {
                 </div>
               </div>
 
-              <KanbanBoard
-                status={status}
-                tarefas={tarefas}
-                loading={statusLoading || tarefasLoading}
-                onMover={(input) => moverTarefa.mutate(input)}
-                onAbrirTarefa={(t) =>
-                  setTarefaModal({ aberta: true, tarefa: t })
-                }
-                onNovaTarefa={(slug) =>
-                  setTarefaModal({ aberta: true, tarefa: null, statusInicial: slug })
-                }
-              />
+              {/* Toolbar: vistas + agrupar + filtros */}
+              <div className="mb-4 space-y-2">
+                <div className="flex items-center gap-1 border-b border-card-border">
+                  {VISTAS.map((v) => {
+                    const Icon = ICONES_VISTA[v];
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => persistirVista(v)}
+                        className={cn(
+                          "px-3 py-2 text-xs font-medium flex items-center gap-1.5 border-b-2 -mb-px",
+                          vista === v
+                            ? "border-verde-primary text-verde-dark"
+                            : "border-transparent text-gray-500 hover:text-gray-800"
+                        )}
+                      >
+                        <Icon size={13} />
+                        {VISTAS_LABEL[v]}
+                      </button>
+                    );
+                  })}
+                  {vista === "lista" && (
+                    <div className="ml-auto flex items-center gap-2 pb-1">
+                      <span className="text-[10px] uppercase text-gray-500">
+                        Agrupar por:
+                      </span>
+                      <select
+                        className="text-xs bg-transparent border-none focus:outline-none text-verde-primary"
+                        value={agruparPor}
+                        onChange={(e) =>
+                          persistirAgrupamento(e.target.value as AgruparPor)
+                        }
+                      >
+                        <option value="status">Status</option>
+                        <option value="responsavel">Responsável</option>
+                        <option value="prioridade">Prioridade</option>
+                        <option value="etiqueta">Etiqueta</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <FiltrosPanel
+                  status={status}
+                  filtros={filtros}
+                  onChange={setFiltros}
+                  filtrosSalvos={filtrosSalvos}
+                  onSalvar={(nome) => {
+                    if (!email || !quadroSel) return;
+                    salvarFiltro.mutate({
+                      id_quadro: quadroSel,
+                      usuario_email: email,
+                      nome,
+                      criterios: filtros,
+                    });
+                  }}
+                  onExcluir={(id) => {
+                    if (!email || !quadroSel) return;
+                    excluirFiltro.mutate({
+                      id,
+                      id_quadro: quadroSel,
+                      usuario_email: email,
+                    });
+                  }}
+                  onCarregar={(f) => setFiltros(f)}
+                />
+              </div>
+
+              {/* Conteúdo por vista */}
+              {vista === "quadro" && (
+                <KanbanBoard
+                  status={status}
+                  tarefas={tarefasFiltradas}
+                  loading={statusLoading || tarefasLoading}
+                  onMover={(input) => moverTarefa.mutate(input)}
+                  onAbrirTarefa={(t) => setTarefaModal({ aberta: true, tarefa: t })}
+                  onNovaTarefa={(slug) =>
+                    setTarefaModal({ aberta: true, tarefa: null, statusInicial: slug })
+                  }
+                />
+              )}
+              {vista === "lista" && (
+                <VistaLista
+                  status={status}
+                  tarefas={tarefasFiltradas}
+                  agruparPor={agruparPor}
+                  onAbrirTarefa={(t) => setTarefaModal({ aberta: true, tarefa: t })}
+                />
+              )}
+              {vista === "calendario" && (
+                <VistaCalendario
+                  tarefas={tarefasFiltradas}
+                  onAbrirTarefa={(t) => setTarefaModal({ aberta: true, tarefa: t })}
+                />
+              )}
+              {vista === "timeline" && (
+                <VistaTimeline
+                  tarefas={tarefasFiltradas}
+                  onAbrirTarefa={(t) => setTarefaModal({ aberta: true, tarefa: t })}
+                />
+              )}
+              {vista === "painel" && (
+                <PainelGestao status={status} tarefas={tarefasFiltradas} />
+              )}
 
               {tarefaModal.aberta && (
                 <TarefaModal

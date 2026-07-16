@@ -6,8 +6,81 @@ export type GestaoRecurso = "space" | "folder" | "list" | "task";
 export type GestaoPapel = "owner" | "admin" | "membro";
 export type PrioridadeTarefa = "Baixa" | "Media" | "Alta" | "Urgente";
 export type TipoStatus = "nao_iniciado" | "ativo" | "concluido";
-export type VistaGestao = "quadro" | "lista" | "calendario" | "timeline";
+export type VistaGestao = "quadro" | "lista" | "calendario" | "timeline" | "painel";
 export type AgruparPor = "status" | "responsavel" | "prioridade" | "etiqueta";
+
+export const VISTAS: VistaGestao[] = ["quadro", "lista", "calendario", "timeline", "painel"];
+export const VISTAS_LABEL: Record<VistaGestao, string> = {
+  quadro: "Kanban",
+  lista: "Lista",
+  calendario: "Calendário",
+  timeline: "Timeline",
+  painel: "Painel",
+};
+
+export type FiltrosGestao = {
+  responsavel?: string;
+  prioridade?: PrioridadeTarefa;
+  status?: string;
+  etiquetas?: string[];
+  prazo?: "atrasadas" | "hoje" | "semana" | "sem-prazo";
+  busca?: string;
+};
+
+export const FILTRO_VAZIO: FiltrosGestao = {};
+
+export function contarFiltros(f: FiltrosGestao): number {
+  let n = 0;
+  if (f.responsavel) n++;
+  if (f.prioridade) n++;
+  if (f.status) n++;
+  if (f.etiquetas && f.etiquetas.length > 0) n++;
+  if (f.prazo) n++;
+  if (f.busca && f.busca.trim()) n++;
+  return n;
+}
+
+// Aplica filtro em memória (usado pelas vistas que já receberam todos os dados)
+export function filtrarTarefas(
+  tarefas: GestaoTarefa[],
+  f: FiltrosGestao
+): GestaoTarefa[] {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const semana = new Date();
+  semana.setDate(semana.getDate() + 7);
+  const semanaIso = semana.toISOString().slice(0, 10);
+  const busca = f.busca?.trim().toLowerCase() ?? "";
+
+  return tarefas.filter((t) => {
+    if (f.responsavel && (t.responsavel ?? "").toLowerCase() !== f.responsavel.toLowerCase())
+      return false;
+    if (f.prioridade && t.prioridade !== f.prioridade) return false;
+    if (f.status && t.status !== f.status) return false;
+    if (f.etiquetas && f.etiquetas.length > 0) {
+      const tem = f.etiquetas.some((e) => t.etiquetas.includes(e));
+      if (!tem) return false;
+    }
+    if (f.prazo) {
+      if (f.prazo === "sem-prazo" && t.prazo) return false;
+      if (f.prazo === "hoje" && t.prazo !== hoje) return false;
+      if (f.prazo === "atrasadas" && (!t.prazo || t.prazo >= hoje)) return false;
+      if (f.prazo === "semana" && (!t.prazo || t.prazo < hoje || t.prazo > semanaIso))
+        return false;
+    }
+    if (busca) {
+      const alvo = [
+        t.titulo,
+        t.descricao ?? "",
+        (t.etiquetas ?? []).join(" "),
+        t.responsavel ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+}
 
 export const PRIORIDADES: PrioridadeTarefa[] = [
   "Baixa",
