@@ -40,6 +40,7 @@ import {
   FileSpreadsheet,
   UserCog,
   FileLock2,
+  Activity,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,7 @@ const ENTRIES_INTERNO: Entry[] = [
       { href: "/conciliacao", label: "Conciliação", icon: Landmark },
       { href: "/apuracao", label: "Apuração", icon: Calculator },
       { href: "/nfe", label: "NF-e", icon: FileCode },
+      { href: "/monitor-xmls", label: "Monitor de XMLs", icon: Activity },
       {
         href: "/integracoes/notas-fiscais",
         label: "Notas Fiscais (integração)",
