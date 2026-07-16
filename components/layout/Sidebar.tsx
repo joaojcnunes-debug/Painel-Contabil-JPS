@@ -41,6 +41,7 @@ import {
   UserCog,
   FileLock2,
   Activity,
+  ClipboardList,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -149,6 +150,7 @@ const ENTRIES_INTERNO: Entry[] = [
   }),
   item({ href: "/honorarios", label: "Honorários", icon: Wallet }),
   item({ href: "/produtividade", label: "Produtividade", icon: TrendingUp }),
+  item({ href: "/gestao", label: "Gestão", icon: ClipboardList }),
   group({
     key: "sistema",
     label: "Sistema",
