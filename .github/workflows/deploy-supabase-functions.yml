@@ -40,17 +40,33 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          set -e
+          # SEM `set -e` — se uma função falha, continua nas outras.
+          # Retry 3x em cada função (esm.sh Cloudflare 522 é intermitente).
+          FAILED=()
           for fn_dir in supabase/functions/*/; do
             name=$(basename "$fn_dir")
-            # Ignora _shared (convenção do Supabase pra código compartilhado)
             if [ "$name" = "_shared" ]; then
               continue
             fi
             echo "════════════════════════════════════════════"
             echo "▶ Deploying: $name"
             echo "════════════════════════════════════════════"
-            supabase functions deploy "$name" \
-              --project-ref "$SUPABASE_PROJECT_REF"
+            for attempt in 1 2 3; do
+              if supabase functions deploy "$name" --project-ref "$SUPABASE_PROJECT_REF"; then
+                echo "✓ $name deployed (attempt $attempt)"
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "⚠ $name failed on attempt $attempt, retrying in 10s..."
+                sleep 10
+              else
+                echo "✗ $name FAILED after 3 attempts"
+                FAILED+=("$name")
+              fi
+            done
           done
+          if [ ${#FAILED[@]} -gt 0 ]; then
+            echo "FALHAS: ${FAILED[*]}"
+            exit 1
+          fi
           echo "✓ All functions deployed"
