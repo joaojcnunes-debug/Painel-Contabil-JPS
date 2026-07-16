@@ -1,0 +1,56 @@
+name: Deploy Supabase Functions
+
+# Dispara em qualquer push no main que altere Edge Functions ou este workflow.
+# Deploya TODAS as funções em supabase/functions/* (idempotente — só re-envia
+# as que mudaram no bundle real).
+#
+# Setup necessário (1 vez):
+#   1) GitHub → repo Settings → Secrets and variables → Actions → New secret
+#      - Nome: SUPABASE_ACCESS_TOKEN
+#      - Valor: gera em https://supabase.com/dashboard/account/tokens
+#
+# Se quiser deployar migrations também via CI:
+#   Adicione o segundo secret SUPABASE_DB_PASSWORD (senha do banco de dados)
+#   e ative o job push-migrations abaixo.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/deploy-supabase-functions.yml"
+  workflow_dispatch:
+
+env:
+  SUPABASE_PROJECT_REF: mwmltqaanfxjkoztgcby
+
+jobs:
+  deploy-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy all Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -e
+          for fn_dir in supabase/functions/*/; do
+            name=$(basename "$fn_dir")
+            # Ignora _shared (convenção do Supabase pra código compartilhado)
+            if [ "$name" = "_shared" ]; then
+              continue
+            fi
+            echo "════════════════════════════════════════════"
+            echo "▶ Deploying: $name"
+            echo "════════════════════════════════════════════"
+            supabase functions deploy "$name" \
+              --project-ref "$SUPABASE_PROJECT_REF"
+          done
+          echo "✓ All functions deployed"
