@@ -98,6 +98,97 @@ export type GestaoTarefa = {
   updated_at: string;
 };
 
+export type TipoCampo =
+  | "texto"
+  | "numero"
+  | "data"
+  | "selecao"
+  | "multi"
+  | "checkbox"
+  | "moeda"
+  | "url";
+
+export const TIPOS_CAMPO_LABEL: Record<TipoCampo, string> = {
+  texto: "Texto curto",
+  numero: "Número",
+  data: "Data",
+  selecao: "Seleção única",
+  multi: "Seleção múltipla",
+  checkbox: "Sim/Não",
+  moeda: "Valor (R$)",
+  url: "Link",
+};
+
+export type GestaoCampo = {
+  id: string;
+  id_quadro: string;
+  nome: string;
+  tipo: TipoCampo;
+  opcoes: string[];
+  ordem: number;
+  visivel_cliente: boolean;
+  created_at: string;
+};
+
+export type GestaoEtiqueta = {
+  id: string;
+  id_quadro: string;
+  nome: string;
+  cor: string;
+  ordem: number;
+  created_at: string;
+};
+
+export const CORES_ETIQUETA = [
+  "#94a3b8",
+  "#3b82f6",
+  "#22c55e",
+  "#eab308",
+  "#f97316",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+];
+
+export type GestaoComentario = {
+  id_comentario: string;
+  id_tarefa: string;
+  autor: string;
+  texto: string;
+  created_at: string;
+};
+
+export type GestaoAnexo = {
+  id: string;
+  id_tarefa: string;
+  nome: string;
+  storage_path: string;
+  mime: string | null;
+  tamanho_bytes: number | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+// Extrai emails mencionados com @ no texto (pra notificação futura)
+export function detectarMencoes(texto: string): string[] {
+  const re = /@([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+  const set = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(texto)) !== null) {
+    set.add(m[1].toLowerCase());
+  }
+  return Array.from(set);
+}
+
+export function formatarBytes(b: number | null | undefined): string {
+  if (b == null || b === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.min(Math.floor(Math.log(b) / Math.log(k)), sizes.length - 1);
+  return `${(b / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)} ${sizes[i]}`;
+}
+
 export type GestaoMembro = {
   id: string;
   usuario_email: string;

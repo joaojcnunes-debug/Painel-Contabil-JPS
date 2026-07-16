@@ -293,6 +293,7 @@ export function useSalvarTarefa() {
             data_inicio: dados.data_inicio ?? null,
             prazo: dados.prazo ?? null,
             etiquetas: dados.etiquetas ?? [],
+            campos: dados.campos ?? {},
             pontos: dados.pontos ?? null,
           } as never)
           .eq("id_tarefa", dados.id_tarefa)
@@ -314,6 +315,7 @@ export function useSalvarTarefa() {
           data_inicio: dados.data_inicio ?? null,
           prazo: dados.prazo ?? null,
           etiquetas: dados.etiquetas ?? [],
+          campos: dados.campos ?? {},
           pontos: dados.pontos ?? null,
         } as never)
         .select()
@@ -384,6 +386,292 @@ export function useExcluirTarefa() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+}
+
+// ─── Campos personalizados ────────────────────────────────────
+export function useCamposQuadro(idQuadro: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "campos", idQuadro ?? "none"],
+    enabled: !!idQuadro,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_campos")
+        .select("*")
+        .eq("id_quadro", idQuadro!)
+        .order("ordem");
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoCampo[];
+    },
+  });
+}
+
+export function useSalvarCampo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      dados: Partial<import("./types").GestaoCampo> & {
+        nome: string;
+        tipo: import("./types").TipoCampo;
+        id_quadro: string;
+      }
+    ) => {
+      const supabase = createSupabaseBrowserClient();
+      if (dados.id) {
+        const { error } = await supabase
+          .from("gestao_campos")
+          .update({
+            nome: dados.nome,
+            tipo: dados.tipo,
+            opcoes: dados.opcoes ?? [],
+            ordem: dados.ordem ?? 0,
+            visivel_cliente: dados.visivel_cliente ?? false,
+          } as never)
+          .eq("id", dados.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("gestao_campos").insert({
+        id_quadro: dados.id_quadro,
+        nome: dados.nome,
+        tipo: dados.tipo,
+        opcoes: dados.opcoes ?? [],
+        ordem: dados.ordem ?? 0,
+        visivel_cliente: dados.visivel_cliente ?? false,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "campos", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirCampo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_quadro: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_campos").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "campos", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Etiquetas do quadro ──────────────────────────────────────
+export function useEtiquetasQuadro(idQuadro: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "etiquetas", idQuadro ?? "none"],
+    enabled: !!idQuadro,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_etiquetas")
+        .select("*")
+        .eq("id_quadro", idQuadro!)
+        .order("ordem")
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoEtiqueta[];
+    },
+  });
+}
+
+export function useSalvarEtiqueta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      dados: Partial<import("./types").GestaoEtiqueta> & {
+        nome: string;
+        cor: string;
+        id_quadro: string;
+      }
+    ) => {
+      const supabase = createSupabaseBrowserClient();
+      if (dados.id) {
+        const { error } = await supabase
+          .from("gestao_etiquetas")
+          .update({ nome: dados.nome, cor: dados.cor, ordem: dados.ordem ?? 0 } as never)
+          .eq("id", dados.id);
+        if (error) throw error;
+        return;
+      }
+      const { error } = await supabase.from("gestao_etiquetas").insert({
+        id_quadro: dados.id_quadro,
+        nome: dados.nome,
+        cor: dados.cor,
+        ordem: dados.ordem ?? 0,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "etiquetas", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirEtiqueta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; id_quadro: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_etiquetas").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "etiquetas", vars.id_quadro] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Comentários ──────────────────────────────────────────────
+export function useComentarios(idTarefa: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "comentarios", idTarefa ?? "none"],
+    enabled: !!idTarefa,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_comentarios")
+        .select("*")
+        .eq("id_tarefa", idTarefa!)
+        .order("created_at");
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoComentario[];
+    },
+  });
+}
+
+export function useAddComentario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id_tarefa: string; autor: string; texto: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.from("gestao_comentarios").insert({
+        id_comentario: gerarId("CMT"),
+        id_tarefa: input.id_tarefa,
+        autor: input.autor,
+        texto: input.texto,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "comentarios", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirComentario() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id_comentario: string; id_tarefa: string }) => {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase
+        .from("gestao_comentarios")
+        .delete()
+        .eq("id_comentario", input.id_comentario);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "comentarios", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Anexos ───────────────────────────────────────────────────
+const MAX_ANEXO_BYTES = 25 * 1024 * 1024; // 25 MB
+
+export function useAnexos(idTarefa: string | null) {
+  return useQuery({
+    queryKey: ["gestao", "anexos", idTarefa ?? "none"],
+    enabled: !!idTarefa,
+    queryFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase
+        .from("gestao_anexos")
+        .select("*")
+        .eq("id_tarefa", idTarefa!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as import("./types").GestaoAnexo[];
+    },
+  });
+}
+
+export function useUploadAnexo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id_tarefa: string; file: File; autor: string | null }) => {
+      if (input.file.size > MAX_ANEXO_BYTES) {
+        throw new Error(`Arquivo maior que ${MAX_ANEXO_BYTES / 1024 / 1024}MB`);
+      }
+      const supabase = createSupabaseBrowserClient();
+      const safeName = input.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const uid =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2);
+      const path = `gestao/${input.id_tarefa}/${uid}-${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from("anexos")
+        .upload(path, input.file, {
+          contentType: input.file.type || "application/octet-stream",
+        });
+      if (upErr) throw upErr;
+      const { error: insErr } = await supabase.from("gestao_anexos").insert({
+        id_tarefa: input.id_tarefa,
+        nome: input.file.name,
+        storage_path: path,
+        mime: input.file.type || null,
+        tamanho_bytes: input.file.size,
+        created_by: input.autor,
+      } as never);
+      if (insErr) throw insErr;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "anexos", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useExcluirAnexo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      id_tarefa: string;
+      storage_path: string;
+    }) => {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.storage.from("anexos").remove([input.storage_path]);
+      const { error } = await supabase.from("gestao_anexos").delete().eq("id", input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ["gestao", "anexos", vars.id_tarefa] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// Retorna URL assinada temporária (60s) pra download do anexo
+export async function urlAssinadaAnexo(storage_path: string): Promise<string> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase.storage
+    .from("anexos")
+    .createSignedUrl(storage_path, 60);
+  if (error) throw error;
+  return data.signedUrl;
 }
 
 // Utility client-side pra escolher a prioridade default
