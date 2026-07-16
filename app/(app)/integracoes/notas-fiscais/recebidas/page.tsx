@@ -18,7 +18,22 @@ type Search = {
   emit?: string;
   de?: string; // dh_emissao >= de
   ate?: string; // dh_emissao <= ate
+  desde?: string; // atalho para baixado_em >= now-X (24h, 7d, 30d ou YYYY-MM-DD)
 };
+
+// Traduz `?desde=24h|7d|30d|YYYY-MM-DD` em um timestamp ISO comparável
+function parseDesde(v: string | undefined): string | null {
+  if (!v) return null;
+  const now = Date.now();
+  const m = /^(\d+)([hd])$/.exec(v);
+  if (m) {
+    const n = Number(m[1]);
+    const ms = m[2] === "h" ? n * 3600_000 : n * 86400_000;
+    return new Date(now - ms).toISOString();
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v + "T00:00:00Z";
+  return null;
+}
 
 type Recebida = {
   chave: string;
@@ -70,6 +85,8 @@ export default async function RecebidasPage({
   if (sp.emit) q = q.ilike("emitente_nome", `%${sp.emit}%`);
   if (sp.de) q = q.gte("dh_emissao", sp.de);
   if (sp.ate) q = q.lte("dh_emissao", sp.ate + "T23:59:59");
+  const desdeIso = parseDesde(sp.desde);
+  if (desdeIso) q = q.gte("baixado_em", desdeIso);
 
   const { data, error } = await q;
   const recebidas = (data ?? []) as unknown as Recebida[];
@@ -95,6 +112,21 @@ export default async function RecebidasPage({
           </Link>
         }
       />
+
+      {sp.desde && desdeIso && (
+        <div className="bg-verde-light border border-verde-primary/30 rounded-xl p-3 mb-4 text-xs text-verde-dark flex items-center justify-between">
+          <span>
+            Mostrando NFe <strong>baixadas nas últimas {sp.desde}</strong>
+            {" · "}{recebidas.length} nota(s), {formatBRL(totalValor)} em valor
+          </span>
+          <Link
+            href="/integracoes/notas-fiscais/recebidas"
+            className="underline hover:text-verde-primary"
+          >
+            Ver todas
+          </Link>
+        </div>
+      )}
 
       {/* Filtros */}
       <form

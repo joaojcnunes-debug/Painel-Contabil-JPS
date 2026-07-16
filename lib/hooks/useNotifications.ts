@@ -5,7 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type NotificationItem = {
   id: string;
-  tipo: "obrigacao" | "documento" | "fatura" | "sessao_ecac" | "certificado";
+  tipo: "obrigacao" | "documento" | "fatura" | "sessao_ecac" | "certificado" | "nfe";
   titulo: string;
   subtitulo: string;
   href: string;
@@ -278,6 +278,80 @@ export function useNotifications(
             href: `/integracoes/certificados`,
             data: c.validade_fim,
             prioridade: vencido || dias <= 7 ? "alta" : "media",
+          });
+        }
+      }
+
+      // 6) NFe novas capturadas nas últimas 24h via Distribuição DFe (só equipe).
+      //    Agrupa por (cliente, emitente) pra não poluir o sino se caiu lote
+      //    inteiro do mesmo fornecedor.
+      if (ehEquipe) {
+        const desde = isoPastMs(HORAS_24);
+        const { data: nfes } = await supabase
+          .from("nfe_dfe_recebidas")
+          .select(
+            "chave, id_cliente, emitente_cnpj, emitente_nome, numero, valor_total, baixado_em, clientes(razao_social)"
+          )
+          .gte("baixado_em", desde)
+          .order("baixado_em", { ascending: false })
+          .limit(200);
+
+        type NfeRow = {
+          chave: string;
+          id_cliente: string;
+          emitente_cnpj: string | null;
+          emitente_nome: string | null;
+          numero: string | null;
+          valor_total: number | null;
+          baixado_em: string;
+          clientes: { razao_social: string } | null;
+        };
+        const rows = (nfes ?? []) as NfeRow[];
+
+        // Chave do bucket: cliente + emitente
+        const grupos = new Map<
+          string,
+          {
+            id_cliente: string;
+            cliente_nome: string;
+            emitente_nome: string;
+            emitente_cnpj: string | null;
+            qtd: number;
+            valor: number;
+            mais_recente: string;
+          }
+        >();
+        for (const r of rows) {
+          const emit = r.emitente_nome ?? "Emitente desconhecido";
+          const chaveGrp = `${r.id_cliente}::${r.emitente_cnpj ?? emit}`;
+          const g = grupos.get(chaveGrp) ?? {
+            id_cliente: r.id_cliente,
+            cliente_nome: r.clientes?.razao_social ?? "—",
+            emitente_nome: emit,
+            emitente_cnpj: r.emitente_cnpj,
+            qtd: 0,
+            valor: 0,
+            mais_recente: r.baixado_em,
+          };
+          g.qtd += 1;
+          g.valor += Number(r.valor_total ?? 0);
+          if (r.baixado_em > g.mais_recente) g.mais_recente = r.baixado_em;
+          grupos.set(chaveGrp, g);
+        }
+
+        for (const g of grupos.values()) {
+          const valorBr = g.valor.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          });
+          items.push({
+            id: `nfe-${g.id_cliente}-${g.emitente_cnpj ?? g.emitente_nome}`,
+            tipo: "nfe",
+            titulo: `${g.qtd} NFe nova${g.qtd > 1 ? "s" : ""} • ${g.cliente_nome}`,
+            subtitulo: `de ${g.emitente_nome} — ${valorBr}`,
+            href: `/integracoes/notas-fiscais/recebidas?cliente=${g.id_cliente}&desde=24h`,
+            data: g.mais_recente,
+            prioridade: g.qtd >= 5 ? "media" : "baixa",
           });
         }
       }
