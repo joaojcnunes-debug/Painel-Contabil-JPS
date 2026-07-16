@@ -24,6 +24,10 @@ export function formatBRL(value: number | null | undefined): string {
 
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
+  // Datas date-only (YYYY-MM-DD) parseadas por new Date() viram UTC 00:00 e no
+  // fuso BRT (-03) exibem o dia anterior. Formata direto sem passar por Date.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR");

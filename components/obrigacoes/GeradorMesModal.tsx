@@ -10,6 +10,7 @@ import { Field, inputClass } from "@/components/ui/Field";
 import { MultiSelectDropdown } from "@/components/ui/MultiSelectDropdown";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { gerarId, formatCNPJ } from "@/lib/utils";
+import { ajustarParaDiaUtil } from "@/lib/dias-uteis";
 import type { Cliente, ObrigacaoCatalogo } from "@/lib/supabase/types";
 
 type Props = {
@@ -28,7 +29,9 @@ function venctoDoMes(comp: string, dia: number | null): string | null {
   if (!comp || !dia) return null;
   const [y, m] = comp.split("-").map(Number);
   const ultimoDia = new Date(y, m, 0).getDate();
-  return `${comp}-${String(Math.min(dia, ultimoDia)).padStart(2, "0")}`;
+  const bruto = `${comp}-${String(Math.min(dia, ultimoDia)).padStart(2, "0")}`;
+  // Antecipa se cair em fim de semana/feriado (regra padrão federal)
+  return ajustarParaDiaUtil(bruto, "anterior");
 }
 
 const PERIOD_LABEL: Record<string, string> = {

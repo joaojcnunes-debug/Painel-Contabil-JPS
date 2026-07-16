@@ -6,8 +6,14 @@ import toast from "react-hot-toast";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass } from "@/components/ui/Field";
+import { CalendarClock } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { gerarId } from "@/lib/utils";
+import { gerarId, formatDate } from "@/lib/utils";
+import {
+  ajustarParaDiaUtil,
+  ehDiaUtil,
+  motivoNaoUtil,
+} from "@/lib/dias-uteis";
 import type {
   Cliente,
   ObrigacaoCatalogo,
@@ -41,7 +47,10 @@ function venctoDoMes(competencia: string, dia: number | null): string {
   const [y, m] = competencia.split("-").map(Number);
   const ultimoDia = new Date(y, m, 0).getDate();
   const diaFinal = Math.min(dia, ultimoDia);
-  return `${competencia}-${String(diaFinal).padStart(2, "0")}`;
+  const bruto = `${competencia}-${String(diaFinal).padStart(2, "0")}`;
+  // Auto-antecipa se cair em fim de semana/feriado (regra padrão pra tributos
+  // federais como DAS, DARF etc)
+  return ajustarParaDiaUtil(bruto, "anterior");
 }
 
 export function ObrigacaoFormModal({
@@ -196,6 +205,23 @@ export function ObrigacaoFormModal({
               value={vencimento}
               onChange={(e) => setVencimento(e.target.value)}
             />
+            {vencimento && !ehDiaUtil(vencimento) && (
+              <div className="mt-1 flex items-center justify-between gap-2 text-[11px] bg-amber-50 border border-amber-200 rounded px-2 py-1 text-amber-900">
+                <span className="flex items-center gap-1">
+                  <CalendarClock size={12} />
+                  {motivoNaoUtil(vencimento)} — sem expediente bancário
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVencimento(ajustarParaDiaUtil(vencimento, "anterior"))
+                  }
+                  className="underline hover:text-amber-950 whitespace-nowrap"
+                >
+                  Antecipar p/ {formatDate(ajustarParaDiaUtil(vencimento, "anterior"))}
+                </button>
+              </div>
+            )}
           </Field>
         </div>
 
