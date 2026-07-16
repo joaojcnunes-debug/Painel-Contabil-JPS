@@ -35,6 +35,13 @@ const NfseConsultarChaveModal = dynamic(
     })),
   { ssr: false }
 );
+const NfseCariocaModal = dynamic(
+  () =>
+    import("@/components/integracoes/NfseCariocaModal").then((m) => ({
+      default: m.NfseCariocaModal,
+    })),
+  { ssr: false }
+);
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -73,6 +80,7 @@ export default function PrefeiturasPage() {
   const [resposta, setResposta] = useState<RespostaIntegracao | null>(null);
   const [nfseDistrOpen, setNfseDistrOpen] = useState(false);
   const [nfseChaveOpen, setNfseChaveOpen] = useState(false);
+  const [nfseCariocaOpen, setNfseCariocaOpen] = useState(false);
 
   const { data: configs = [] } = useIntegracoes(
     idCliente ? { idCliente } : undefined
@@ -202,6 +210,21 @@ export default function PrefeiturasPage() {
             >
               <Search size={14} /> Consultar por chave
             </button>
+            {clienteSel?.estado === "RJ" && (
+              <button
+                onClick={() => {
+                  if (!idCliente) {
+                    toast.error("Selecione a empresa primeiro");
+                    return;
+                  }
+                  setNfseCariocaOpen(true);
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-lg text-xs font-medium text-amber-900 hover:bg-amber-100"
+                title="Webservice legado do RJ (ABRASF). Só consulta histórico — emissão foi decommissionada em 01/01/2026"
+              >
+                <Building2 size={14} /> Nota Carioca (legado)
+              </button>
+            )}
             <Link
               href="/integracoes/nfse/recebidas"
               className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
@@ -230,6 +253,12 @@ export default function PrefeiturasPage() {
           <NfseConsultarChaveModal
             open={nfseChaveOpen}
             onClose={() => setNfseChaveOpen(false)}
+            idCliente={idCliente}
+            nomeCliente={clienteSel.razao_social}
+          />
+          <NfseCariocaModal
+            open={nfseCariocaOpen}
+            onClose={() => setNfseCariocaOpen(false)}
             idCliente={idCliente}
             nomeCliente={clienteSel.razao_social}
           />
