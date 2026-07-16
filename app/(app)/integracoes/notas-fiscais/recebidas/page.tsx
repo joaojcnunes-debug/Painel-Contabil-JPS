@@ -11,6 +11,7 @@ import { inputClass } from "@/components/ui/Field";
 import { getServerSupabase } from "@/lib/supabase/server-cache";
 import { formatBRL, formatCNPJ, formatDate } from "@/lib/utils";
 import { BaixarXmlButton } from "./BaixarXmlButton";
+import { VincularBotao } from "./VincularBotao";
 
 type Search = {
   cliente?: string;
@@ -19,6 +20,8 @@ type Search = {
   de?: string; // dh_emissao >= de
   ate?: string; // dh_emissao <= ate
   desde?: string; // atalho para baixado_em >= now-X (24h, 7d, 30d ou YYYY-MM-DD)
+  sem_manif?: string; // "1" filtra só sem manifestação
+  sem_lanc?: string; // "1" filtra só sem lançamento
 };
 
 // Traduz `?desde=24h|7d|30d|YYYY-MM-DD` em um timestamp ISO comparável
@@ -47,6 +50,8 @@ type Recebida = {
   valor_total: number | null;
   dh_emissao: string | null;
   baixado_em: string;
+  status_manifestacao: string | null;
+  id_lancamento: string | null;
   clientes: { razao_social: string } | null;
 };
 
@@ -73,7 +78,7 @@ export default async function RecebidasPage({
   let q = supabase
     .from("nfe_dfe_recebidas")
     .select(
-      "chave, id_cliente, ambiente, nsu, emitente_cnpj, emitente_nome, numero, serie, valor_total, dh_emissao, baixado_em, clientes(razao_social)"
+      "chave, id_cliente, ambiente, nsu, emitente_cnpj, emitente_nome, numero, serie, valor_total, dh_emissao, baixado_em, status_manifestacao, id_lancamento, clientes(razao_social)"
     )
     .order("baixado_em", { ascending: false })
     .limit(200);
@@ -87,6 +92,8 @@ export default async function RecebidasPage({
   if (sp.ate) q = q.lte("dh_emissao", sp.ate + "T23:59:59");
   const desdeIso = parseDesde(sp.desde);
   if (desdeIso) q = q.gte("baixado_em", desdeIso);
+  if (sp.sem_manif === "1") q = q.is("status_manifestacao", null);
+  if (sp.sem_lanc === "1") q = q.is("id_lancamento", null);
 
   const { data, error } = await q;
   const recebidas = (data ?? []) as unknown as Recebida[];
@@ -210,7 +217,7 @@ export default async function RecebidasPage({
 
       {/* Tabela */}
       <div className="bg-white border border-card-border rounded-xl overflow-x-auto">
-        <table className="w-full text-sm min-w-[900px]">
+        <table className="w-full text-sm min-w-[1050px]">
           <thead className="bg-gray-50 text-gray-600 text-left text-xs uppercase">
             <tr>
               <th className="px-4 py-3 w-28">Emissão</th>
@@ -218,6 +225,7 @@ export default async function RecebidasPage({
               <th className="px-4 py-3 w-24">NF</th>
               <th className="px-4 py-3 w-32 text-right">Valor</th>
               <th className="px-4 py-3 w-32">Cliente</th>
+              <th className="px-4 py-3 w-28">Vínculo</th>
               <th className="px-4 py-3 w-20">Amb</th>
               <th className="px-4 py-3 w-24">Baixado</th>
               <th className="px-4 py-3 w-28"></th>
@@ -226,14 +234,14 @@ export default async function RecebidasPage({
           <tbody className="divide-y divide-card-border">
             {error && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-red-alert text-sm">
+                <td colSpan={9} className="px-4 py-6 text-center text-red-alert text-sm">
                   Erro: {error.message}
                 </td>
               </tr>
             )}
             {!error && recebidas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500">
+                <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500">
                   <FileCode size={32} className="mx-auto text-gray-300 mb-2" />
                   Nenhuma NF recebida com esses filtros.
                 </td>
@@ -267,6 +275,15 @@ export default async function RecebidasPage({
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[150px]">
                   {r.clientes?.razao_social ?? "—"}
+                </td>
+                <td className="px-4 py-3">
+                  <VincularBotao
+                    chave={r.chave}
+                    idCliente={r.id_cliente}
+                    valorNfe={r.valor_total != null ? Number(r.valor_total) : null}
+                    dhEmissao={r.dh_emissao}
+                    idLancamentoAtual={r.id_lancamento}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <span
