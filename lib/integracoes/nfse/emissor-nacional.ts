@@ -127,6 +127,7 @@ export type ListarNfseParams = {
   senha: string;
   ambiente: AmbienteNfse;
   ultimoNsu?: string; // se omitido, começa em "0"
+  cnpjConsulta?: string; // opcional: CNPJ completo (14 díg) a consultar. Se omitido, ADN usa o do cert. Passar explicitamente pode destravar retorno de EMITIDAS em alguns cenários.
 };
 
 export type NfseDoc = {
@@ -186,17 +187,18 @@ export async function listarNfsePorNsu(
 
   const ultimoNsu = p.ultimoNsu ?? "0";
 
-  // GET /contribuintes/DFe/{NSU} — sem query params.
-  // O ADN devolve EMITIDAS, RECEBIDAS e EVENTOS no mesmo lote, para o CNPJ
-  // (raiz) do certificado. tipoNSU=DISTRIBUICAO / lote=true são parâmetros
-  // do endpoint /municipios/dfe/{NSU} (perspectiva prefeitura) — se passados
-  // no endpoint de contribuintes, filtram tudo pra fora.
+  // GET /contribuintes/DFe/{NSU}[?cnpjConsulta=<cnpj>]
+  // O ADN devolve EMITIDAS, RECEBIDAS e EVENTOS no mesmo lote, pro CNPJ do cert.
+  // Se cnpjConsulta for informado, o ADN valida raiz e usa o CNPJ do parâmetro.
+  const qs = p.cnpjConsulta
+    ? `?cnpjConsulta=${encodeURIComponent(p.cnpjConsulta.replace(/\D/g, ""))}`
+    : "";
   let res: { status: number; body: unknown };
   try {
     res = await requestJsonMTLS<unknown>({
       endpoint: ENDPOINT_ADN[p.ambiente],
       method: "GET",
-      path: `/contribuintes/DFe/${encodeURIComponent(ultimoNsu)}`,
+      path: `/contribuintes/DFe/${encodeURIComponent(ultimoNsu)}${qs}`,
       privateKeyPem,
       certPem,
     });

@@ -155,6 +155,7 @@ export async function POST(req: NextRequest) {
       senha,
       ambiente: amb,
       ultimoNsu,
+      cnpjConsulta: cnpjLimpo,
     });
 
     if (!resultado.ok) {
