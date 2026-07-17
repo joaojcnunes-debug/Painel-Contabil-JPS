@@ -186,19 +186,17 @@ export async function listarNfsePorNsu(
 
   const ultimoNsu = p.ultimoNsu ?? "0";
 
-  // Path CORRETO (validado no swagger contribuintes ISSQN, jun/2026):
-  // GET /contribuintes/DFe/{NSU}?tipoNSU=DISTRIBUICAO&lote=true
-  // - "contribuintes" plural (não singular)
-  // - "DFe" (não "nfse") — rota compartilha padrão DF-e
-  // - NSU no PATH parameter, não em query
-  // - tipoNSU=DISTRIBUICAO obrigatório
-  // - lote=true traz várias notas em uma chamada
+  // GET /contribuintes/DFe/{NSU} — sem query params.
+  // O ADN devolve EMITIDAS, RECEBIDAS e EVENTOS no mesmo lote, para o CNPJ
+  // (raiz) do certificado. tipoNSU=DISTRIBUICAO / lote=true são parâmetros
+  // do endpoint /municipios/dfe/{NSU} (perspectiva prefeitura) — se passados
+  // no endpoint de contribuintes, filtram tudo pra fora.
   let res: { status: number; body: unknown };
   try {
     res = await requestJsonMTLS<unknown>({
       endpoint: ENDPOINT_ADN[p.ambiente],
       method: "GET",
-      path: `/contribuintes/DFe/${encodeURIComponent(ultimoNsu)}?tipoNSU=DISTRIBUICAO&lote=true`,
+      path: `/contribuintes/DFe/${encodeURIComponent(ultimoNsu)}`,
       privateKeyPem,
       certPem,
     });
