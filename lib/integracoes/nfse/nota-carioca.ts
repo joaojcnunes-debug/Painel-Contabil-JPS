@@ -32,22 +32,13 @@ const ENDPOINTS: Record<AmbienteCarioca, string> = {
   2: "https://notacariocahom.rio.gov.br/WSNacional/nfse.asmx",
 };
 
+// Namespace ABRASF pro payload interno (XML dentro do inputXML)
 const ABRASF_NS = "http://www.abrasf.org.br/nfse.xsd";
-// O servidor Nota Carioca (ASMX) rejeita SOAPActions desconhecidos com
-// "Server did not recognize the value of HTTP Header SOAPAction". Sem WSDL
-// público (exige cert pra baixar), tentamos as variantes mais comuns em
-// sequência até uma funcionar. Loga qual acertou pra os próximos requests
-// já ir direto (via cache em memória).
-const SOAP_ACTION_CANDIDATES = [
-  "http://notacarioca.rio.gov.br/WSNacional/ConsultarNfse",
-  "http://tempuri.org/ConsultarNfse",
-  "http://www.abrasf.org.br/nfse.xsd/ConsultarNfse",
-  "ConsultarNfse",
-  "",
-];
-
-// Cache do SOAPAction que funcionou (evita repetir tentativas em produção)
-let SOAP_ACTION_FUNCIONANDO: string | null = null;
+// Namespace do serviço ASMX (descoberto via WSDL) — usado no wrapper SOAP
+// e no SOAPAction. NÃO é "http://.../WSNacional/..." como o path do endpoint
+// sugere; é só o host com barra final.
+const SERVICE_NS = "http://notacarioca.rio.gov.br/";
+const SOAP_ACTION = `${SERVICE_NS}ConsultarNfse`;
 
 export type NfseCariocaDoc = {
   chave: string;
@@ -198,7 +189,7 @@ function montarEnvelope(p: {
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">`,
     `<soap:Body>`,
-    `<ConsultarNfse xmlns="http://notacarioca.rio.gov.br/WSNacional/">`,
+    `<ConsultarNfse xmlns="${SERVICE_NS}">`,
     `<inputXML><![CDATA[${inner}]]></inputXML>`,
     `</ConsultarNfse>`,
     `</soap:Body>`,
@@ -322,48 +313,17 @@ export async function consultarNfseCarioca(
     pagina: p.paginaInicial ?? 1,
   });
 
-  // Tenta múltiplos SOAPActions até encontrar um que o servidor aceite
-  const candidatos = SOAP_ACTION_FUNCIONANDO
-    ? [SOAP_ACTION_FUNCIONANDO, ...SOAP_ACTION_CANDIDATES.filter((c) => c !== SOAP_ACTION_FUNCIONANDO)]
-    : SOAP_ACTION_CANDIDATES;
-
-  let res: { status: number; body: string } | null = null;
-  let ultimoErro = "";
-  for (const action of candidatos) {
-    try {
-      const r = await soapRequest({
-        endpoint: ENDPOINTS[p.ambiente],
-        soapAction: action,
-        envelope,
-        privateKeyPem,
-        certPem,
-      });
-      // Só continua tentando se o servidor rejeitou o SOAPAction específico.
-      // Qualquer outro erro (401, 403, timeout, faultstring diferente) é
-      // resposta final — não faz sentido tentar outros SOAPActions.
-      const naoReconheceu = r.body.includes(
-        "did not recognize the value of HTTP Header SOAPAction"
-      );
-      if (r.status === 200 || (r.status >= 400 && !naoReconheceu)) {
-        // 200 = sucesso; 400+ com outro motivo = já sabemos o SOAPAction
-        SOAP_ACTION_FUNCIONANDO = action;
-        res = r;
-        break;
-      }
-      if (r.status >= 400 && naoReconheceu) {
-        ultimoErro = `SOAPAction "${action}" rejeitado`;
-        continue; // tenta próximo
-      }
-      // Qualquer outro cenário: aceita como resposta final
-      res = r;
-      break;
-    } catch (e) {
-      ultimoErro = `Conexão Nota Carioca: ${(e as Error).message}`;
-    }
-  }
-
-  if (!res) {
-    return { ok: false, erro: `Todos os SOAPActions rejeitados. Último: ${ultimoErro}` };
+  let res: { status: number; body: string };
+  try {
+    res = await soapRequest({
+      endpoint: ENDPOINTS[p.ambiente],
+      soapAction: SOAP_ACTION,
+      envelope,
+      privateKeyPem,
+      certPem,
+    });
+  } catch (e) {
+    return { ok: false, erro: `Conexão Nota Carioca: ${(e as Error).message}` };
   }
 
   if (res.status !== 200) {
