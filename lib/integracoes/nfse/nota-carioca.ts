@@ -33,7 +33,11 @@ const ENDPOINTS: Record<AmbienteCarioca, string> = {
 };
 
 const ABRASF_NS = "http://www.abrasf.org.br/nfse.xsd";
-const SOAP_ACTION = "http://notacarioca.rio.gov.br/wsnacional/ConsultarNfse";
+// SOAPAction: o servidor Nota Carioca rejeita "wsnacional" minúsculo com
+// "Server did not recognize the value of HTTP Header SOAPAction". O path
+// do endpoint é /WSNacional/nfse.asmx (WS maiúsculo). ASMX é case-sensitive
+// nesse header.
+const SOAP_ACTION = "http://notacarioca.rio.gov.br/WSNacional/ConsultarNfse";
 
 export type NfseCariocaDoc = {
   chave: string;
@@ -184,7 +188,7 @@ function montarEnvelope(p: {
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">`,
     `<soap:Body>`,
-    `<ConsultarNfse xmlns="http://notacarioca.rio.gov.br/wsnacional/">`,
+    `<ConsultarNfse xmlns="http://notacarioca.rio.gov.br/WSNacional/">`,
     `<inputXML><![CDATA[${inner}]]></inputXML>`,
     `</ConsultarNfse>`,
     `</soap:Body>`,
