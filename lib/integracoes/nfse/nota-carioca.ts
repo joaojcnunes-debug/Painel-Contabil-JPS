@@ -338,10 +338,12 @@ export async function consultarNfseCarioca(
         privateKeyPem,
         certPem,
       });
-      // Se servidor não reconheceu o SOAPAction, tenta o próximo
-      const naoReconheceu =
-        r.body.includes("did not recognize the value of HTTP Header SOAPAction") ||
-        r.body.includes("SOAPAction");
+      // Só continua tentando se o servidor rejeitou o SOAPAction específico.
+      // Qualquer outro erro (401, 403, timeout, faultstring diferente) é
+      // resposta final — não faz sentido tentar outros SOAPActions.
+      const naoReconheceu = r.body.includes(
+        "did not recognize the value of HTTP Header SOAPAction"
+      );
       if (r.status === 200 || (r.status >= 400 && !naoReconheceu)) {
         // 200 = sucesso; 400+ com outro motivo = já sabemos o SOAPAction
         SOAP_ACTION_FUNCIONANDO = action;
