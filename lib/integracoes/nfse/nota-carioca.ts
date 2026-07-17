@@ -327,6 +327,17 @@ export async function consultarNfseCarioca(
   }
 
   if (res.status !== 200) {
+    // Detecta a página HTML de manutenção do PCRJ (título "Atualizando NFS-e")
+    if (res.status === 503 && res.body.includes("Atualizando NFS-e")) {
+      return {
+        ok: false,
+        status: 503,
+        erro:
+          "Nota Carioca está em manutenção agora. A página oficial pediu " +
+          "'aguarde alguns instantes'. Tente novamente em ~1 min.",
+        raw: res.body.slice(0, 400),
+      };
+    }
     // SOAP Fault pode vir com 500. Tentamos extrair a mensagem.
     const fault = res.body.match(/<faultstring[^>]*>([\s\S]*?)<\/faultstring>/i);
     return {
