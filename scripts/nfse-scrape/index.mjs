@@ -206,17 +206,12 @@ function statusFromSituacaoRaw(raw) {
   return "AUTORIZADA";
 }
 
-// Extrai número sequencial da chave NFSe nacional (50 dígitos).
-// Layout: [IBGE 7] [tipo 1] [prestador CNPJ 14] [modelo 5] [numero 15] [DV 8]
-// Ancoramos no CNPJ do prestador; depois vem série (5) + número (15).
-function numeroFromChave(chave, cnpjPrestador) {
-  if (!chave || !cnpjPrestador) return null;
-  const idx = chave.indexOf(cnpjPrestador);
-  if (idx < 0) return null;
-  const numStr = chave.slice(idx + 14 + 5, idx + 14 + 5 + 15);
-  const n = parseInt(numStr, 10);
-  return Number.isFinite(n) && n > 0 ? String(n) : null;
-}
+// numero_nfse: por enquanto NULL. O layout da chave nacional 50-dígitos
+// não expõe cleanly o número humano da NFSe — o campo "número" técnico
+// tem 13 dígitos e não bate com o que aparece no portal (que exibe
+// número curto + código de controle). Enquanto não temos captcha
+// resolvido pra abrir a tela de detalhe e ler o número visível, é
+// melhor deixar NULL do que gravar valor enganoso.
 
 async function persistir(cliente, notas) {
   const idCliente = cliente.id_cliente;
@@ -228,7 +223,7 @@ async function persistir(cliente, notas) {
     nsu: "portal_scrape",
     papel: "PRESTADOR",
     origem: "portal_scrape",
-    numero_nfse: numeroFromChave(n.chave, cnpjPrestador),
+    numero_nfse: null,
     dh_emissao: parseDataBR(n.data),
     status: statusFromSituacaoRaw(n.situacao_raw),
     prestador_cnpj: cnpjPrestador,
