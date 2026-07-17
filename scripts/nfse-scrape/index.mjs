@@ -160,12 +160,15 @@ async function scrapeCliente(cliente) {
           const chave = m?.[1] ?? null;
           const tds = tr.querySelectorAll("td");
           const cnpjEl = tds[1]?.querySelector(".cnpj");
+          const cnpjTxt = cnpjEl?.textContent?.trim() ?? "";
           const bloco = tds[1]?.textContent?.trim().replace(/\s+/g, " ") ?? "";
+          // remove o CNPJ (com formatação) e o hyphen separador do bloco
+          const nome = bloco.replace(cnpjTxt, "").replace(/^\s*-\s*/, "").trim();
           return {
             chave,
             data: tds[0]?.textContent?.trim() ?? "",
-            cnpj_tomador: cnpjEl?.textContent?.trim() ?? "",
-            nome_tomador: bloco.split("-").slice(1).join("-").trim(),
+            cnpj_tomador: cnpjTxt,
+            nome_tomador: nome,
             competencia: tds[2]?.textContent?.trim() ?? "",
             municipio: tds[3]?.textContent?.trim() ?? "",
             valor: tds[4]?.textContent?.trim() ?? "",
@@ -203,8 +206,21 @@ function statusFromSituacaoRaw(raw) {
   return "AUTORIZADA";
 }
 
+// Extrai número sequencial da chave NFSe nacional (50 dígitos).
+// Layout: [IBGE 7] [tipo 1] [prestador CNPJ 14] [modelo 5] [numero 15] [DV 8]
+// Ancoramos no CNPJ do prestador; depois vem série (5) + número (15).
+function numeroFromChave(chave, cnpjPrestador) {
+  if (!chave || !cnpjPrestador) return null;
+  const idx = chave.indexOf(cnpjPrestador);
+  if (idx < 0) return null;
+  const numStr = chave.slice(idx + 14 + 5, idx + 14 + 5 + 15);
+  const n = parseInt(numStr, 10);
+  return Number.isFinite(n) && n > 0 ? String(n) : null;
+}
+
 async function persistir(cliente, notas) {
   const idCliente = cliente.id_cliente;
+  const cnpjPrestador = (cliente.cnpj ?? "").replace(/\D/g, "");
   const linhas = notas.map((n) => ({
     chave: n.chave,
     id_cliente: idCliente,
@@ -212,9 +228,10 @@ async function persistir(cliente, notas) {
     nsu: "portal_scrape",
     papel: "PRESTADOR",
     origem: "portal_scrape",
+    numero_nfse: numeroFromChave(n.chave, cnpjPrestador),
     dh_emissao: parseDataBR(n.data),
     status: statusFromSituacaoRaw(n.situacao_raw),
-    prestador_cnpj: (cliente.cnpj ?? "").replace(/\D/g, ""),
+    prestador_cnpj: cnpjPrestador,
     prestador_nome: cliente.razao_social,
     tomador_cnpj: n.cnpj_tomador?.replace(/\D/g, "") || null,
     tomador_nome: n.nome_tomador || null,
