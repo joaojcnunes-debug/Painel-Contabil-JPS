@@ -35,9 +35,27 @@ function log(cliente, msg) {
   console.log(`${prefix} ${msg}`);
 }
 
-function decriptarSenha(encB64, ivB64) {
-  const enc = Buffer.from(encB64, "base64");
-  const iv = Buffer.from(ivB64, "base64");
+// bytea vem do PostgREST/supabase-js como:
+// - Buffer (quando lib faz o decode)
+// - string base64 (quando serializado JSON puro)
+// - string "\\xdeadbeef" (formato hex Postgres, common quando resource_representation)
+function decodeBytea(v) {
+  if (Buffer.isBuffer(v)) return v;
+  if (v == null) throw new Error("bytea nulo");
+  if (typeof v === "string") {
+    if (v.startsWith("\\x")) return Buffer.from(v.slice(2), "hex");
+    // heurística: hex puro (só 0-9a-f, comprimento par)
+    if (/^[0-9a-fA-F]+$/.test(v) && v.length % 2 === 0) return Buffer.from(v, "hex");
+    return Buffer.from(v, "base64");
+  }
+  // { type: 'Buffer', data: [...] }
+  if (v && Array.isArray(v.data)) return Buffer.from(v.data);
+  throw new Error(`bytea formato inesperado: ${typeof v}`);
+}
+
+function decriptarSenha(encVal, ivVal) {
+  const enc = decodeBytea(encVal);
+  const iv = decodeBytea(ivVal);
   const ct = enc.subarray(0, enc.length - 16);
   const tag = enc.subarray(enc.length - 16);
   const d = createDecipheriv("aes-256-gcm", MASTER_KEY, iv);
