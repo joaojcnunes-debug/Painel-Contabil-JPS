@@ -1,0 +1,16 @@
+{
+  "name": "nfse-scrape",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Scraper do portal nfse.gov.br pra baixar NFSe emitidas por clientes. Roda em cron diário via GH Actions.",
+  "scripts": {
+    "poc": "node poc.mjs",
+    "run": "node index.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "node-forge": "^1.3.1",
+    "playwright": "^1.48.0"
+  }
+}

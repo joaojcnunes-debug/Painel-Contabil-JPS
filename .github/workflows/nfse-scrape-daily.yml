@@ -1,0 +1,54 @@
+name: NFSe Scrape Daily
+
+# Scrape do portal nfse.gov.br pra baixar metadata das NFSe emitidas
+# de todos os clientes ativos com A1 cadastrado. Roda 1x por dia às 3h Brasília
+# (6h UTC). Também pode ser disparado manualmente pela aba Actions.
+#
+# Secrets necessários (repo Settings → Secrets and variables → Actions):
+#   - SUPABASE_URL                (URL do projeto: https://<ref>.supabase.co)
+#   - SUPABASE_SERVICE_ROLE_KEY   (service role secret)
+#   - CERT_SENHA_MASTER_KEY       (base64 32B — mesma do Vercel)
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 03:00 America/Sao_Paulo
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        working-directory: scripts/nfse-scrape
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright Chromium
+        working-directory: scripts/nfse-scrape
+        run: npx playwright install --with-deps chromium
+
+      - name: Run scrape
+        working-directory: scripts/nfse-scrape
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CERT_SENHA_MASTER_KEY: ${{ secrets.CERT_SENHA_MASTER_KEY }}
+        run: node index.mjs
+
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-${{ github.run_id }}
+          path: |
+            scripts/nfse-scrape/output/*.png
+            scripts/nfse-scrape/output/*.html
+          retention-days: 7
