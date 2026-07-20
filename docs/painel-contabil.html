@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Painel Contábil JPS — Documentação</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    color: #1e2a24;
+    background: white;
+  }
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; color: #234438; font-weight: 600; }
+  h1 { font-size: 22pt; margin: 0 0 4pt; letter-spacing: -0.5px; }
+  h2 { font-size: 16pt; margin: 24pt 0 8pt; padding-bottom: 4pt; border-bottom: 1.5pt solid #234438; page-break-after: avoid; }
+  h3 { font-size: 12pt; margin: 14pt 0 4pt; color: #2a5a48; page-break-after: avoid; }
+  h4 { font-size: 10.5pt; margin: 8pt 0 2pt; color: #34655a; page-break-after: avoid; }
+  p { margin: 4pt 0 8pt; }
+  ul, ol { margin: 4pt 0 8pt; padding-left: 18pt; }
+  li { margin: 1pt 0; }
+  strong { color: #1e2a24; }
+  code { font-family: "Consolas", "Menlo", "Courier New", monospace; font-size: 9pt; background: #f3f5f4; padding: 1pt 4pt; border-radius: 2pt; color: #2a5a48; }
+  pre { font-family: "Consolas", monospace; font-size: 8.5pt; background: #f3f5f4; padding: 8pt 10pt; border-left: 3pt solid #4a8a72; overflow-x: auto; margin: 6pt 0; page-break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; page-break-inside: avoid; }
+  th, td { border: 0.5pt solid #d0d5d3; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+  th { background: #eef4f0; font-weight: 600; color: #234438; }
+  tr:nth-child(even) td { background: #fafbfa; }
+  .cover {
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    height: 250mm; text-align: center; page-break-after: always;
+  }
+  .cover .title { font-family: Georgia, serif; font-size: 34pt; color: #234438; font-weight: 600; margin-bottom: 4pt; }
+  .cover .subtitle { font-size: 14pt; color: #5a6961; margin-bottom: 30mm; }
+  .cover .meta { font-size: 10pt; color: #7a8981; }
+  .cover .badge { background: #234438; color: white; padding: 4pt 12pt; border-radius: 4pt; font-size: 9pt; letter-spacing: 1px; margin-bottom: 20mm; text-transform: uppercase; }
+  .toc { page-break-after: always; }
+  .toc h2 { border-bottom: 1.5pt solid #234438; }
+  .toc ol { list-style: none; padding-left: 0; }
+  .toc li { padding: 3pt 0; border-bottom: 0.25pt dotted #d0d5d3; display: flex; justify-content: space-between; font-size: 10.5pt; }
+  .toc .num { color: #7a8981; font-family: monospace; margin-right: 8pt; }
+  .toc ol ol li { padding-left: 18pt; font-size: 9.5pt; color: #4a5a52; }
+  .callout {
+    border-left: 3pt solid #ccc; padding: 6pt 10pt; margin: 6pt 0 10pt;
+    background: #f6f8f7; font-size: 9.5pt; page-break-inside: avoid;
+  }
+  .callout.info { border-left-color: #4a7ea0; background: #eef4f8; }
+  .callout.warn { border-left-color: #d4a44a; background: #faf3e3; }
+  .callout.danger { border-left-color: #c04a4a; background: #f9ecec; }
+  .callout.tip { border-left-color: #4a8a72; background: #eef4f0; }
+  .callout .title { font-weight: 600; margin-bottom: 2pt; font-family: Georgia, serif; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8pt; }
+  .card { border: 0.5pt solid #d0d5d3; border-radius: 3pt; padding: 8pt 10pt; background: #fafbfa; page-break-inside: avoid; }
+  .card h4 { margin-top: 0; }
+  .kpi-row { display: flex; gap: 8pt; margin: 6pt 0; }
+  .kpi { flex: 1; border: 0.5pt solid #d0d5d3; border-radius: 3pt; padding: 6pt 8pt; background: #fafbfa; text-align: center; }
+  .kpi .n { font-size: 18pt; font-weight: 700; color: #234438; font-family: Georgia, serif; display: block; }
+  .kpi .l { font-size: 8pt; color: #7a8981; text-transform: uppercase; letter-spacing: 0.5px; }
+  .flow { font-family: Consolas, monospace; font-size: 8.5pt; background: #f3f5f4; padding: 10pt; border-radius: 3pt; white-space: pre; overflow-x: auto; page-break-inside: avoid; }
+  .section { page-break-inside: avoid; }
+  .page-break { page-break-before: always; }
+  hr { border: none; border-top: 0.5pt solid #d0d5d3; margin: 12pt 0; }
+  .tag { display: inline-block; padding: 1pt 6pt; border-radius: 2pt; font-size: 8pt; font-weight: 600; letter-spacing: 0.3px; }
+  .tag.green { background: #d6ecdb; color: #234438; }
+  .tag.blue { background: #d5e3ec; color: #234a5c; }
+  .tag.gold { background: #f2e3c4; color: #664c1e; }
+  .tag.gray { background: #e6e9e7; color: #4a5a52; }
+  .footer-note { font-size: 8pt; color: #7a8981; margin-top: 16pt; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<div class="cover">
+  <div class="badge">Documentação Interna</div>
+  <div class="title">Painel Contábil JPS</div>
+  <div class="subtitle">Sistema completo de gestão contábil, fiscal, trabalhista e integrações governamentais</div>
+  <div class="meta">
+    Escritório JSP Contabilidade<br>
+    Versão do documento: 1.0 · Julho/2026<br>
+    <br>
+    <code>painel-contabil-jps.vercel.app</code>
+  </div>
+</div>
+
+<!-- SUMÁRIO -->
+<div class="toc">
+  <h2>Sumário</h2>
+  <ol>
+    <li><span><span class="num">1</span> Visão Geral</span></li>
+    <li><span><span class="num">2</span> Acesso e Perfis</span></li>
+    <li><span><span class="num">3</span> Módulos do Sistema</span></li>
+    <ol>
+      <li><span>3.1 Contábil</span></li>
+      <li><span>3.2 Fiscal e Documentos</span></li>
+      <li><span>3.3 RH e Departamento Pessoal</span></li>
+      <li><span>3.4 Financeiro</span></li>
+      <li><span>3.5 Integrações Governamentais</span></li>
+      <li><span>3.6 Gestão, Produtividade e Auditoria</span></li>
+      <li><span>3.7 Administração</span></li>
+    </ol>
+    <li><span><span class="num">4</span> Automações e Rotinas</span></li>
+    <li><span><span class="num">5</span> Integração NFSe (destaque)</span></li>
+    <li><span><span class="num">6</span> Segurança</span></li>
+    <li><span><span class="num">7</span> Manutenção e Operação</span></li>
+    <li><span><span class="num">8</span> Limitações Conhecidas</span></li>
+    <li><span><span class="num">9</span> Deploy e Infraestrutura</span></li>
+  </ol>
+</div>
+
+<!-- 1. VISÃO GERAL -->
+<h2>1. Visão Geral</h2>
+
+<p>O <strong>Painel Contábil JPS</strong> é o sistema interno do escritório para gerenciar toda a operação contábil, fiscal e trabalhista da carteira de clientes. Substituindo planilhas e sistemas fragmentados, ele centraliza cadastros, cálculos, obrigações, integrações governamentais reais e comunicação com o cliente final (portal).</p>
+
+<h3>1.1 Para quem</h3>
+<div class="grid2">
+  <div class="card">
+    <h4>Equipe interna</h4>
+    <p>Admin, Contador e Assistente — acesso completo aos módulos operacionais, integrações e configurações.</p>
+  </div>
+  <div class="card">
+    <h4>Cliente final</h4>
+    <p>Portal dedicado (<code>/portal</code>) — cliente acessa apenas documentos, financeiro e obrigações da própria empresa.</p>
+  </div>
+</div>
+
+<h3>1.2 Stack técnica</h3>
+<table>
+  <tr><th>Camada</th><th>Tecnologia</th><th>Notas</th></tr>
+  <tr><td>Frontend</td><td>Next.js 15.5 + React 19 + TypeScript</td><td>App Router com Server Components + Client Components</td></tr>
+  <tr><td>Estilização</td><td>Tailwind CSS 4 + Lucide Icons</td><td>Design tokens verdes (paleta institucional)</td></tr>
+  <tr><td>Dados</td><td>Supabase (Postgres 15 + Auth + Storage + Edge Functions)</td><td>Todas as tabelas com Row Level Security</td></tr>
+  <tr><td>Estado cliente</td><td>@tanstack/react-query v5 + Zustand</td><td>Cache automático, invalidation por queryKey</td></tr>
+  <tr><td>XML / Cripto</td><td>fast-xml-parser + xml-crypto + node-forge</td><td>Assinatura digital SEFAZ / eSocial (A1)</td></tr>
+  <tr><td>Deploy</td><td>Vercel (frontend/API) + Supabase (banco) + GitHub Actions (cron)</td><td>Deploy automático em cada push na branch main</td></tr>
+  <tr><td>Automação</td><td>Playwright + Chromium (headless, mTLS)</td><td>Scrape do portal nfse.gov.br</td></tr>
+</table>
+
+<h3>1.3 Números do sistema</h3>
+<div class="kpi-row">
+  <div class="kpi"><span class="n">22</span><span class="l">módulos</span></div>
+  <div class="kpi"><span class="n">34</span><span class="l">migrations</span></div>
+  <div class="kpi"><span class="n">11</span><span class="l">edge functions</span></div>
+  <div class="kpi"><span class="n">10+</span><span class="l">integrações gov</span></div>
+</div>
+
+<!-- 2. ACESSO E PERFIS -->
+<h2>2. Acesso e Perfis</h2>
+
+<p>A autenticação usa <strong>Supabase Auth</strong> por e-mail e senha, com opção de MFA/TOTP (autenticador tipo Google Authenticator). O sistema tem 4 perfis:</p>
+
+<table>
+  <tr><th>Perfil</th><th>Acessa</th><th>Casos de uso típicos</th></tr>
+  <tr><td><span class="tag green">Admin</span></td><td>Tudo, incluindo Usuários, Config, Catálogos</td><td>Sócio responsável pelo escritório</td></tr>
+  <tr><td><span class="tag blue">Contador</span></td><td>Módulos operacionais + Integrações</td><td>Contador titular executando tarefas do dia-a-dia</td></tr>
+  <tr><td><span class="tag gold">Assistente</span></td><td>Módulos operacionais (sem Config/Usuários)</td><td>Estagiário ou auxiliar</td></tr>
+  <tr><td><span class="tag gray">Cliente</span></td><td>Apenas <code>/portal</code> — sua própria empresa</td><td>Cliente final consultando documentos, obrigações e faturas</td></tr>
+</table>
+
+<div class="callout tip">
+  <div class="title">💡 Estrutura de rotas</div>
+  Três grupos separados: <code>(app)</code> área interna, <code>(portal)</code> área do cliente, <code>(public)</code> login/redefinição. O layout bloqueia acesso não autorizado e redireciona Cliente para <code>/portal</code>.
+</div>
+
+<!-- 3. MÓDULOS -->
+<h2>3. Módulos do Sistema</h2>
+
+<p>Os módulos estão organizados por área funcional. Cada módulo tem página principal, algumas têm subpáginas de detalhe e catálogos administrativos.</p>
+
+<h3>3.1 Contábil</h3>
+
+<h4>Início (<code>/inicio</code>)</h4>
+<p>Dashboard geral com KPIs do escritório: clientes ativos, obrigações pendentes e atrasadas, documentos recebidos, faturas em aberto. Gráfico de barras dos últimos 6 meses (via Recharts). Rota inicial para perfis internos.</p>
+
+<h4>Clientes (<code>/clientes</code>)</h4>
+<p>CRUD completo da carteira: razão social, CNPJ, regime tributário (Simples/Presumido/Real/MEI/Doméstico/Rural), atividade principal, honorário mensal, endereço, contatos. Suporta importação em lote via CSV e integração com BrasilAPI para preencher CNPJ automaticamente. Detalhe do cliente em <code>/clientes/[id]</code> e relatório em <code>/clientes/[id]/relatorio</code>.</p>
+
+<h4>Lançamentos (<code>/lancamentos</code>)</h4>
+<p>Escrituração contábil — receitas e despesas classificadas em plano de contas. Base para o DRE (<code>/lancamentos/dre</code>) e demonstrações formatadas (<code>/lancamentos/demonstracoes</code>). Suporta:</p>
+<ul>
+  <li><strong>Recorrentes</strong> — modelos que geram lançamentos mensais automaticamente (Edge Function <code>gerar-recorrentes-mes</code>)</li>
+  <li><strong>Plano de contas</strong> — catálogo editável por Admin em <code>/lancamentos/catalogo</code></li>
+  <li><strong>Importação CSV em lote</strong></li>
+  <li><strong>Anexos por lançamento</strong> (documentos comprobatórios)</li>
+</ul>
+
+<h4>Conciliação (<code>/conciliacao</code>)</h4>
+<p>Conciliação bancária. Importa extratos <strong>OFX ou CSV</strong>, casa movimentos com lançamentos livres via heurística de melhor candidato (<code>lib/conciliacao-match.ts</code>). Três abas: <em>Pendentes / Conciliados / Ignorados</em>.</p>
+
+<h4>Apuração (<code>/apuracao</code>)</h4>
+<p>Cálculo do <strong>DAS mensal do Simples Nacional</strong>. Considera a RBT12 (receita bruta dos últimos 12 meses), aplica a alíquota efetiva do anexo do cliente (I a V), gera a apuração e grava em <code>apuracoes_simples</code>. Tabelas oficiais em <code>lib/simples-nacional.ts</code>.</p>
+
+<div class="page-break"></div>
+
+<h3>3.2 Fiscal e Documentos</h3>
+
+<h4>NF-e (<code>/nfe</code>)</h4>
+<p>Importação <strong>manual</strong> de XMLs de NF-e (entrada e saída). Parser próprio (<code>fast-xml-parser</code>), deduplicação por chave, detecção automática do papel do CNPJ do cliente (emitente = SAÍDA / destinatário = ENTRADA), criação automática de lançamento vinculado. Detalhe em <code>/nfe/[id]</code>.</p>
+
+<h4>Monitor de XMLs (<code>/monitor-xmls</code>)</h4>
+<p>Dashboard das NF-e baixadas via <strong>Distribuição DFe do SEFAZ</strong>. Mostra KPIs: notas sem manifestação, sem lançamento, por período (7/30/90 dias/ano). Cron Edge Function <code>enviar-resumo-nfe-diario</code> manda resumo diário por e-mail. Baseia-se na view <code>vw_nfe_dfe_monitor</code>.</p>
+
+<h4>Documentos (<code>/documentos</code>)</h4>
+<p>Repositório de arquivos por cliente (contratos, comprovantes, guias). Upload direto no Supabase Storage, categorização e status de tratamento (<em>RECEBIDO, EM_ANALISE, PROCESSADO, DEVOLVIDO</em>).</p>
+
+<h3>3.3 RH e Departamento Pessoal</h3>
+
+<h4>Folha (<code>/folha</code>)</h4>
+<p>Folha de pagamento completa. Três abas: <em>Funcionários / Processar / Histórico</em>. Cadastro de funcionários (CLT, Estagiário, Aprendiz), status (<em>ATIVO, AFASTADO, FERIAS, DEMITIDO</em>), processamento mensal com cálculo de proventos, INSS, IRRF, descontos. Detalhe da folha em <code>/folha/[id]</code>, holerite imprimível em <code>/folha/[id]/holerite/[idFunc]</code>. Gera XMLs S-1200 para o eSocial.</p>
+
+<h4>Pró-labore (<code>/pro-labore</code>)</h4>
+<p>Cadastro de sócios e processamento mensal do pró-labore com INSS 11% (autônomo) + IRRF. Recibo imprimível em <code>/pro-labore/recibo/[id]</code>.</p>
+
+<h4>13º Salário (<code>/decimo-terceiro</code>)</h4>
+<p>Cálculo das duas parcelas do 13º considerando meses trabalhados no ano. Suporta ajustes (média de variáveis, primeira parcela já paga). Recibo imprimível.</p>
+
+<h4>Férias (<code>/ferias</code>)</h4>
+<p>Programação de férias, cálculo do terço constitucional, abono pecuniário. Status configurável. Recibo imprimível.</p>
+
+<h3>3.4 Financeiro</h3>
+
+<h4>Honorários (<code>/honorarios</code>)</h4>
+<p>Faturamento do escritório aos clientes. Emissão de faturas, controle de pagamentos, atrasos e cancelamentos. Status: <em>ABERTA / PAGA / ATRASADA / CANCELADA</em>. Gerador em massa (modal <code>GeradorFaturasModal</code>). Alertas automáticos via Edge Functions <code>enviar-alertas-faturas</code> e <code>enviar-relatorio-mensal</code>. Recibo imprimível em <code>/honorarios/[id]/recibo</code>.</p>
+
+<h4>Obrigações (<code>/obrigacoes</code>)</h4>
+<p>Gestão de obrigações fiscais e trabalhistas: DAS, DCTFWeb, DEFIS, FGTS, GPS, etc. Por cliente e competência, com vencimento e status (<em>PENDENTE / EM_ANDAMENTO / ENTREGUE / ATRASADA / DISPENSADA</em>).</p>
+<ul>
+  <li><strong>Calendário</strong> (<code>/obrigacoes/calendario</code>) — visão mensal em grade</li>
+  <li><strong>Catálogo</strong> (<code>/obrigacoes/catalogo</code>) — Admin cadastra tipos disponíveis</li>
+  <li><strong>Detalhe + comentários</strong> — <code>/obrigacoes/[id]</code></li>
+  <li><strong>Gerador em massa</strong> — cria todas as obrigações do mês em um clique</li>
+  <li><strong>Automação</strong> — Edge Function <code>atualizar-status-vencidos</code> marca ATRASADA automaticamente; <code>enviar-alertas-vencimento</code> dispara e-mails de alerta</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h3>3.5 Integrações Governamentais</h3>
+
+<h4>Integrações (<code>/integracoes</code>)</h4>
+<p>Hub central. Grid de cards, um por módulo governamental. Cada ação pode ser <em>SIMULADA</em> (dry-run com dados falsos) ou <em>REAL</em> (dispara webservice de verdade, requer cert A1). Registry central em <code>lib/integracoes/core/registry.ts</code>.</p>
+
+<table>
+  <tr><th>Subpágina</th><th>O que faz</th></tr>
+  <tr><td><code>/certificados</code></td><td>Gestão de certificados digitais (A1, A3, procuração e-CAC, conectividade social)</td></tr>
+  <tr><td><code>/notas-fiscais</code></td><td>SEFAZ NF-e: Distribuição DFe, Status SEFAZ, manifestação</td></tr>
+  <tr><td><code>/nfse</code></td><td>NFSe Emissor Nacional + Nota Carioca (legado)</td></tr>
+  <tr><td><code>/nfse/recebidas</code></td><td>Lista de NFSe baixadas (origem: ADN, Nota Carioca, portal_scrape, manual)</td></tr>
+  <tr><td><code>/esocial</code></td><td>Envio/consulta de eventos (S-1000, S-2200, S-2210 SST etc.)</td></tr>
+  <tr><td><code>/efd-reinf</code></td><td>R-4000, serviços tomados, retenções, DCTFWeb</td></tr>
+  <tr><td><code>/receita-federal</code></td><td>Consulta CNPJ, situação fiscal, pendências, caixa postal e-CAC</td></tr>
+  <tr><td><code>/simples-nacional</code></td><td>Integrações PGDAS-D</td></tr>
+  <tr><td><code>/sped</code></td><td>Envios SPED</td></tr>
+  <tr><td><code>/fgts-digital</code></td><td>Consultas FGTS Digital</td></tr>
+  <tr><td><code>/redesim</code></td><td>Integrações Redesim</td></tr>
+  <tr><td><code>/prefeituras</code></td><td>NFS-e municipal, ISS, CND municipal</td></tr>
+  <tr><td><code>/logs</code></td><td>Histórico de execuções (com filtros por módulo/ação/status)</td></tr>
+</table>
+
+<h4>Sessões e-CAC (<code>/sessoes-ecac</code>)</h4>
+<p>Registro manual das visitas ao e-CAC pelo contador: situação fiscal (Regular/Pendência), pendências encontradas, valor total. Botão <em>Abrir e-CAC</em> gera deep-link para o portal da Receita. Script CLI <code>scripts/ecac/sync-ecac.mjs</code> (<code>npm run ecac:sync</code>) sincroniza automaticamente via Playwright quando executado localmente.</p>
+
+<h3>3.6 Gestão, Produtividade e Auditoria</h3>
+
+<h4>Gestão (<code>/gestao</code>)</h4>
+<p>Módulo tipo <strong>Notion/ClickUp</strong> — espaços, pastas, quadros, tarefas com múltiplas vistas (Kanban, Lista, Calendário, Timeline, Painel). Recursos:</p>
+<ul>
+  <li>Sistema próprio de permissões (owner, admin, membro por quadro)</li>
+  <li>Automações e filtros salvos</li>
+  <li>Preferências de visão por usuário/quadro</li>
+  <li>Formulários públicos via Edge Function <code>gestao-form-submit</code></li>
+  <li>Assistente IA via <code>gestao-ia</code></li>
+  <li>Export de calendário .ics via <code>gestao-ics</code></li>
+  <li>Resumo diário automático via <code>enviar-alertas-diarios-equipe</code></li>
+</ul>
+
+<h4>Produtividade (<code>/produtividade</code>)</h4>
+<p>Métricas de entregas: quantas obrigações foram entregues no prazo/em atraso em janela configurável (30-365 dias).</p>
+
+<h4>Logs (<code>/logs</code>)</h4>
+<p>Auditoria — histórico de todas operações INSERT/UPDATE/DELETE em tabelas críticas (clientes, obrigações, faturas, documentos, usuários, config). Comparação visual antes/depois (<code>DiffRow.tsx</code>). Baseado no trigger <code>audit_log</code>.</p>
+
+<h3>3.7 Administração</h3>
+
+<h4>Config (<code>/config</code>)</h4>
+<p>Configurações do escritório: dados cadastrais, logo, e-mail de alertas. Disparadores manuais de Edge Functions para forçar execução (útil pra teste). Apenas Admin edita.</p>
+
+<h4>Usuários (<code>/usuarios</code>)</h4>
+<p>CRUD de usuários do sistema. Vínculo opcional com <code>id_cliente</code> para acesso via portal. Reset de senha via Edge Function <code>admin-reset-password</code>. Apenas Admin.</p>
+
+<h4>Segurança (<code>/seguranca</code>)</h4>
+<p>Autoatendimento de MFA/2FA por TOTP para a conta logada. Usa <code>supabase.auth.mfa</code> nativo.</p>
+
+<!-- 4. AUTOMAÇÕES -->
+<h2>4. Automações e Rotinas</h2>
+
+<p>O sistema tem <strong>11 Edge Functions</strong> hospedadas no Supabase e <strong>1 workflow GitHub Actions</strong>, executando automaticamente sem intervenção manual.</p>
+
+<h3>4.1 Edge Functions do Supabase</h3>
+
+<table>
+  <tr><th>Função</th><th>O que faz</th><th>Quando roda</th></tr>
+  <tr><td><code>atualizar-status-vencidos</code></td><td>Marca obrigações e faturas atrasadas</td><td>Cron diário</td></tr>
+  <tr><td><code>enviar-alertas-vencimento</code></td><td>Alerta e-mail de obrigações vencendo</td><td>Cron diário</td></tr>
+  <tr><td><code>enviar-alertas-faturas</code></td><td>Alerta e-mail de faturas vencendo</td><td>Cron diário</td></tr>
+  <tr><td><code>enviar-relatorio-mensal</code></td><td>Relatório mensal ao cliente</td><td>Cron mensal</td></tr>
+  <tr><td><code>enviar-resumo-nfe-diario</code></td><td>Resumo diário de NFe capturadas</td><td>Cron diário</td></tr>
+  <tr><td><code>enviar-alertas-diarios-equipe</code></td><td>Resumo diário Gestão para equipe</td><td>Cron diário</td></tr>
+  <tr><td><code>gerar-recorrentes-mes</code></td><td>Cria lançamentos recorrentes do mês</td><td>Cron mensal (dia 1)</td></tr>
+  <tr><td><code>gestao-form-submit</code></td><td>Recebe submissões de formulários públicos</td><td>Sob demanda (POST)</td></tr>
+  <tr><td><code>gestao-ia</code></td><td>Assistente IA do módulo Gestão</td><td>Sob demanda</td></tr>
+  <tr><td><code>gestao-ics</code></td><td>Exporta calendário em iCal</td><td>Sob demanda (GET)</td></tr>
+  <tr><td><code>admin-reset-password</code></td><td>Reset de senha de usuário</td><td>Sob demanda (Admin)</td></tr>
+</table>
+
+<h3>4.2 GitHub Actions — NFSe Scrape</h3>
+
+<p>Workflow <code>.github/workflows/nfse-scrape-daily.yml</code> roda às <strong>03h AM Brasília</strong> (6h UTC) e sincroniza as NFSe emitidas de todos os clientes ativos com A1 cadastrado. Detalhado na próxima seção.</p>
+
+<div class="callout info">
+  <div class="title">Custo das automações</div>
+  Todas as automações são <strong>gratuitas</strong>. Supabase Edge Functions no plano Free (500k invocações/mês). GitHub Actions gratuito para repositórios (2000 min/mês; usamos ~24 min/mês).
+</div>
+
+<div class="page-break"></div>
+
+<!-- 5. NFSe SCRAPE (destaque) -->
+<h2>5. Integração NFSe — Foco em Detalhe</h2>
+
+<p>NFSe é a única fonte de dados fiscais que <strong>não tem</strong> uma API oficial confiável para o prestador (o ADN só devolve NFSe recebidas, não emitidas). O painel implementa <strong>quatro caminhos distintos</strong> para capturar o máximo de informação possível.</p>
+
+<h3>5.1 As 4 origens de NFSe no banco</h3>
+
+<table>
+  <tr><th>Origem</th><th>Como chega</th><th>Traz XML?</th><th>Cobre</th></tr>
+  <tr><td><code>adn</code></td><td>API oficial <code>/contribuintes/DFe/{NSU}</code> com mTLS</td><td>Sim</td><td>NFSe onde CNPJ do cert é <em>tomador</em></td></tr>
+  <tr><td><code>nota_carioca</code></td><td>Webservice ABRASF do PCRJ com mTLS</td><td>Sim</td><td>Histórico municipal do Rio (legado, decommissionado em 01/01/2026)</td></tr>
+  <tr><td><code>portal_scrape</code></td><td>Playwright + cert A1 no portal nfse.gov.br</td><td>Não (captcha)</td><td>NFSe emitidas pelo próprio cliente via portal</td></tr>
+  <tr><td><code>manual</code></td><td>Importação manual pelo usuário</td><td>Sim (upload)</td><td>Fallback quando outras origens falham</td></tr>
+</table>
+
+<h3>5.2 Fluxo do NFSe Scrape (o mais complexo)</h3>
+
+<div class="flow">[03h AM Brasília] cron do GitHub Actions dispara
+        │
+        ▼
+GH Actions runner Ubuntu:
+  1. Instala Node 22 + npm ci + Chromium (~30s)
+  2. Executa scripts/nfse-scrape/index.mjs
+        │
+        ▼
+Script (por cada cliente ativo com A1 + senha encriptada):
+  3. Query Supabase → busca lista de clientes elegíveis
+  4. Baixa PFX do bucket certificados-jsp
+  5. Decripta senha AES-256-GCM com CERT_SENHA_MASTER_KEY
+  6. Extrai key + cert do PFX (node-forge)
+  7. Playwright headless + clientCertificates
+  8. Login mTLS em certificado.nfse.gov.br (sem 2FA)
+  9. Navega até /EmissorNacional/Notas/Emitidas (últimos 30d)
+ 10. Percorre paginação, extrai chave + metadata de cada linha
+ 11. Upsert em nfse_recebidas (origem="portal_scrape")
+ 12. Log em integracoes_logs
+        │
+        ▼
+Termina em ~1min por cliente. Se falha → screenshot + HTML
+como artifact GH Actions (retenção 7 dias).
+</div>
+
+<h3>5.3 Metadata capturada por nota</h3>
+
+<ul>
+  <li><code>chave</code> — 50 dígitos padrão nacional (único)</li>
+  <li><code>dh_emissao</code> — data de geração</li>
+  <li><code>prestador_cnpj</code> + <code>prestador_nome</code></li>
+  <li><code>tomador_cnpj</code> + <code>tomador_nome</code></li>
+  <li><code>valor_servicos</code></li>
+  <li><code>status</code> — AUTORIZADA, CANCELADA, SUBSTITUIDA</li>
+  <li><code>municipio</code></li>
+  <li><code>situacao_raw</code> — código do portal (ex: P100_GERADA)</li>
+</ul>
+
+<div class="callout warn">
+  <div class="title">⚠ Limitação conhecida — Captcha</div>
+  O portal exige <strong>hCaptcha</strong> por download individual de XML. Isso <em>não</em> impede o scrape da listagem (a listagem não pede captcha), mas impede baixar o XML autenticado da nota em lote. Para acessar o XML de uma nota específica, o usuário abre a nota manualmente no portal e baixa (1 captcha por nota).
+</div>
+
+<h3>5.4 Como monitorar</h3>
+
+<ol>
+  <li>No painel: <code>/integracoes/prefeituras</code> mostra o <strong>card de status</strong> por cliente selecionado (última sync, quantidade total, se falhou)</li>
+  <li>No GitHub: aba <em>Actions</em> mostra todos os runs com log completo</li>
+  <li>Botão <strong>"Sincronizar agora"</strong> no painel abre a página do workflow para executar sob demanda sem esperar 03h AM</li>
+</ol>
+
+<div class="page-break"></div>
+
+<!-- 6. SEGURANÇA -->
+<h2>6. Segurança</h2>
+
+<h3>6.1 Camadas de proteção</h3>
+
+<div class="grid2">
+  <div class="card">
+    <h4>Autenticação</h4>
+    <ul>
+      <li>Supabase Auth por e-mail e senha</li>
+      <li>MFA/TOTP opcional por usuário</li>
+      <li>Reset de senha por Admin via Edge Function</li>
+      <li>Cliente vinculado a <code>id_cliente</code> restrito ao próprio escopo</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Autorização (RLS)</h4>
+    <ul>
+      <li>Row Level Security ativo em <strong>todas</strong> as tabelas</li>
+      <li>Policies por perfil (Admin/Contador/Assistente/Cliente)</li>
+      <li>Cliente só enxerga dados do próprio <code>id_cliente</code></li>
+      <li>Certos catálogos restritos apenas a Admin</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Criptografia</h4>
+    <ul>
+      <li>Senha do cert A1: <strong>AES-256-GCM</strong> com chave master no env (<code>CERT_SENHA_MASTER_KEY</code>)</li>
+      <li>PFX no bucket privado <code>certificados-jsp</code></li>
+      <li>Comunicação HTTPS end-to-end (mTLS onde aplicável — SEFAZ, ADN, Nota Carioca)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Auditoria</h4>
+    <ul>
+      <li>Trigger <code>audit_log</code> grava snapshots antes/depois</li>
+      <li>Tela <code>/logs</code> mostra histórico completo com diff visual</li>
+      <li>Logs de integrações em <code>integracoes_logs</code> (execução, duração, sucesso/erro)</li>
+    </ul>
+  </div>
+</div>
+
+<h3>6.2 Rotação de credenciais</h3>
+
+<p>Recomenda-se rotação periódica das credenciais críticas:</p>
+
+<table>
+  <tr><th>Credencial</th><th>Onde</th><th>Como rotacionar</th></tr>
+  <tr><td>Supabase Service Role</td><td>Vercel + GitHub Actions secret</td><td>Dashboard → Settings → API → Reset</td></tr>
+  <tr><td>Supabase Access Token (PAT)</td><td>Uso local</td><td>Dashboard → Account → Access Tokens</td></tr>
+  <tr><td>Senha do login painel</td><td>Autoatendimento</td><td>Menu do usuário → Alterar senha</td></tr>
+  <tr><td>Senha do cert A1</td><td>Modal de cadastro de certificado</td><td>Reeditar cert e digitar nova senha — sistema reencripta</td></tr>
+  <tr><td>Chave master AES</td><td>Env do Vercel + GH Actions secret</td><td>Gerar nova <code>randomBytes(32)</code>, reencriptar senhas existentes</td></tr>
+</table>
+
+<!-- 7. MANUTENÇÃO -->
+<h2>7. Manutenção e Operação</h2>
+
+<h3>7.1 Adicionar cliente novo</h3>
+<ol>
+  <li>Menu → <em>Clientes</em> → botão <strong>Novo cliente</strong></li>
+  <li>Preencher razão social, CNPJ, regime tributário, honorário, endereço</li>
+  <li>Salvar — cliente já aparece na carteira</li>
+  <li>(Opcional) Adicionar cert A1 na seção Integrações → Certificados</li>
+  <li>(Opcional) Vincular usuários do tipo Cliente pra acesso ao portal</li>
+</ol>
+
+<h3>7.2 Cadastrar certificado A1 de cliente</h3>
+<ol>
+  <li>Menu → <em>Integrações</em> → <em>Certificados</em> → <strong>Novo certificado</strong></li>
+  <li>Selecionar Empresa (cliente) e tipo <strong>A1</strong></li>
+  <li>Upload do arquivo <code>.pfx</code></li>
+  <li>Digitar a senha</li>
+  <li>Clicar <em>Validar e preencher campos</em> — sistema extrai titular, CNPJ, emissor, validade</li>
+  <li><strong>Atenção:</strong> se o CNPJ do certificado não bater com o do cliente, aparece alerta amarelo. Cadastre apenas se confirmado que é o cert correto</li>
+  <li>Salvar — o arquivo vai pro bucket privado e a senha é encriptada AES-256-GCM automaticamente</li>
+</ol>
+
+<h3>7.3 Ativar cron NFSe scrape para novo cliente</h3>
+<p>Basta ter <strong>cliente ativo</strong> (<code>status = "Ativo"</code>) e <strong>cert A1 com senha encriptada</strong> vinculado. O cron da madrugada seguinte já pega esse cliente automaticamente. Não precisa mexer no workflow.</p>
+
+<h3>7.4 Diagnóstico de falha</h3>
+<ol>
+  <li>Verificar o run mais recente em <code>github.com/joaojcnunes-debug/Painel-Contabil-JPS/actions</code></li>
+  <li>Se falha, baixar o <strong>artifact</strong> (screenshots + HTML dump) do run</li>
+  <li>Consultar <code>integracoes_logs</code> filtrando por <code>acao = 'nfse_scrape'</code></li>
+  <li>Card de status no <code>/integracoes/prefeituras</code> também mostra falha em amarelo</li>
+</ol>
+
+<!-- 8. LIMITAÇÕES -->
+<h2>8. Limitações Conhecidas</h2>
+
+<div class="callout warn">
+  <div class="title">Captcha do portal nfse.gov.br</div>
+  Download individual de XML requer hCaptcha ("Sou humano"). Solução alternativa não implementada: integrar 2captcha (~$5/mês) para automatizar. Hoje resolvemos por listagem apenas (metadata) + baixa manual quando o XML original é necessário.
+</div>
+
+<div class="callout warn">
+  <div class="title">ADN NFSe — não devolve emitidas</div>
+  A API oficial <code>/contribuintes/DFe/{NSU}</code> só retorna NFSe onde o CNPJ é <em>tomador</em>, não <em>prestador</em>. Isso é limitação da fonte, não do painel. Contornamos via scrape do portal.
+</div>
+
+<div class="callout warn">
+  <div class="title">Município deve aderir ao Emissor Nacional</div>
+  O Rio de Janeiro aderiu em 01/01/2026. Municípios que ainda não migraram: NFSe fica só no portal municipal antigo (ex: Nota Carioca até 2025 → precisa integração específica ou upload manual).
+</div>
+
+<div class="callout warn">
+  <div class="title">A1 apenas (sem A3)</div>
+  Certificado A3 (token físico) não pode ser automatizado. Cliente novo precisa exportar A1 (arquivo <code>.pfx</code>) e fornecer a senha.
+</div>
+
+<!-- 9. DEPLOY -->
+<h2>9. Deploy e Infraestrutura</h2>
+
+<h3>9.1 Ambientes</h3>
+<table>
+  <tr><th>Componente</th><th>Provedor</th><th>URL / Ref</th></tr>
+  <tr><td>Frontend + API Routes</td><td>Vercel</td><td><code>painel-contabil-jps.vercel.app</code></td></tr>
+  <tr><td>Banco Postgres + Auth + Storage</td><td>Supabase</td><td>Projeto <code>mwmltqaanfxjkoztgcby</code></td></tr>
+  <tr><td>Repositório de código</td><td>GitHub</td><td><code>joaojcnunes-debug/Painel-Contabil-JPS</code></td></tr>
+  <tr><td>Cron NFSe Scrape</td><td>GitHub Actions</td><td>Workflow <code>nfse-scrape-daily.yml</code></td></tr>
+  <tr><td>Edge Functions</td><td>Supabase Edge</td><td>11 funções (auto-deploy via CI)</td></tr>
+</table>
+
+<h3>9.2 Pipeline de deploy</h3>
+<div class="flow">git push origin main
+        │
+        ├──▶ Vercel (webhook GitHub App)
+        │     └─ build Next.js + deploy em produção (~2 min)
+        │
+        ├──▶ GitHub Actions
+        │     └─ Se mudou supabase/functions/* → deploya Edge Functions
+        │     └─ Se cron 03h AM → executa NFSe scrape
+        │
+        └──▶ Supabase migrations (aplicadas manualmente ou via MCP)
+</div>
+
+<h3>9.3 Segredos configurados</h3>
+<table>
+  <tr><th>Onde</th><th>Segredos</th></tr>
+  <tr><td>Vercel Env Variables</td><td>NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, CERT_SENHA_MASTER_KEY, SUPABASE_SERVICE_ROLE_KEY (edge functions)</td></tr>
+  <tr><td>GitHub Actions Secrets</td><td>SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, CERT_SENHA_MASTER_KEY, SUPABASE_ACCESS_TOKEN</td></tr>
+  <tr><td>.env.local (dev)</td><td>Mesmos do Vercel</td></tr>
+</table>
+
+<hr>
+
+<div class="footer-note">
+  Documento gerado em julho/2026 · Painel Contábil JPS v1.0 · <br>
+  Manutenção: Chabra TI · Suporte: <code>suporte.ti@chabra.com.br</code>
+</div>
+
+</body>
+</html>
