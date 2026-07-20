@@ -12,12 +12,14 @@ import {
   Building2,
   CheckCircle2,
   CloudDownload,
+  ExternalLink,
   FileCode,
   History,
   Landmark,
   Loader2,
   Play,
   Receipt,
+  RefreshCw,
   Search,
   ShieldCheck,
 } from "lucide-react";
@@ -43,6 +45,7 @@ const NfseCariocaModal = dynamic(
     })),
   { ssr: false }
 );
+import { NfseScrapeStatusCard } from "@/components/integracoes/NfseScrapeStatusCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { inputClass } from "@/components/ui/Field";
@@ -226,6 +229,16 @@ export default function PrefeiturasPage() {
                 <Building2 size={14} /> Nota Carioca (legado)
               </button>
             )}
+            <a
+              href="https://github.com/joaojcnunes-debug/Painel-Contabil-JPS/actions/workflows/nfse-scrape-daily.yml"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+              title="Roda o scrape do portal nfse.gov.br sob demanda. Abre GitHub Actions em nova aba — clique em 'Run workflow' → 'Run workflow'"
+            >
+              <RefreshCw size={14} /> Sincronizar agora
+              <ExternalLink size={11} className="opacity-60" />
+            </a>
             <Link
               href="/integracoes/nfse/recebidas"
               className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-card-border rounded-lg text-xs font-medium text-verde-primary hover:bg-verde-light"
@@ -265,6 +278,8 @@ export default function PrefeiturasPage() {
           />
         </>
       )}
+
+      {idCliente && <NfseScrapeStatusCard idCliente={idCliente} />}
 
       <div className="bg-white border border-card-border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-[280px]">

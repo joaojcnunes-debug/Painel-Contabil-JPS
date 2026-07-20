@@ -120,6 +120,18 @@ export function CertificadoFormModal({
       toast.success(
         `Certificado válido. Vence em ${data.dias_para_vencer} dias.`
       );
+      // B) alerta se CNPJ do cert não bate com o do cliente selecionado
+      if (idCliente) {
+        const cli = clientes.find((c) => c.id_cliente === idCliente);
+        const cnpjCli = (cli?.cnpj ?? "").replace(/\D/g, "");
+        const cnpjCert = (data.titular_documento ?? "").replace(/\D/g, "");
+        if (cnpjCli && cnpjCert && cnpjCli !== cnpjCert) {
+          toast(
+            `⚠ CNPJ do certificado (${cnpjCert}) não bate com o do cliente (${cnpjCli}).\nConfira se está vinculando ao cliente correto.`,
+            { duration: 10000, icon: "⚠️" }
+          );
+        }
+      }
     } catch (e) {
       toast.error(`Erro: ${(e as Error).message}`);
     } finally {
@@ -143,6 +155,21 @@ export function CertificadoFormModal({
       const ehProcuracao = tipo === "PROCURACAO_ECAC";
       const ehA1 = tipo === "A1";
       const idCert = isEdit ? certificado!.id_certificado : gerarId("CRT");
+      const docLimpo = titularDoc.replace(/\D/g, "");
+
+      // B) Validação forte: CNPJ do cert precisa bater com o do cliente
+      // vinculado (só bloqueia CNPJ vs CNPJ; CPF/e-CPF passa).
+      if (ehA1 && idCliente && docLimpo.length === 14) {
+        const cli = clientes.find((c) => c.id_cliente === idCliente);
+        const cnpjCli = (cli?.cnpj ?? "").replace(/\D/g, "");
+        if (cnpjCli && cnpjCli !== docLimpo) {
+          const ok = window.confirm(
+            `Atenção: o CNPJ do certificado (${docLimpo}) NÃO bate com o do cliente ${cli?.razao_social} (${cnpjCli}).\n\n` +
+              `Isso normalmente indica vínculo incorreto. Deseja salvar mesmo assim?`
+          );
+          if (!ok) throw new Error("Cadastro cancelado — CNPJ divergente");
+        }
+      }
 
       // 1) Faz upload do .pfx se houver arquivo selecionado (só A1)
       let novoArquivoPath = arquivoPath;
@@ -165,7 +192,7 @@ export function CertificadoFormModal({
         id_cliente: idCliente || null,
         tipo,
         titular_nome: titularNome.trim(),
-        titular_documento: titularDoc.replace(/\D/g, ""),
+        titular_documento: docLimpo,
         emissor: emissor.trim() || null,
         validade_inicio: validadeInicio || null,
         validade_fim: validadeFim || null,
@@ -190,6 +217,25 @@ export function CertificadoFormModal({
           .from("certificados_digitais")
           .insert({ id_certificado: idCert, ...payload } as never);
         if (error) throw error;
+      }
+
+      // A) Se A1 + senha digitada, encripta e salva. Rota nunca retorna a
+      // senha; falha aqui não invalida o cadastro (arquivo já subiu),
+      // então mostra warning em vez de throw.
+      if (ehA1 && senhaPfx) {
+        try {
+          const r = await fetch("/api/certificado/salvar-senha", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_certificado: idCert, senha: senhaPfx }),
+          });
+          const j = await r.json();
+          if (!r.ok || !j.ok) {
+            toast.error(`Cert salvo, MAS senha não foi encriptada: ${j.erro ?? "erro"}. Reeditar cadastro pra retentar.`);
+          }
+        } catch (e) {
+          toast.error(`Cert salvo, MAS senha não foi encriptada: ${(e as Error).message}. Reeditar cadastro pra retentar.`);
+        }
       }
     },
     onSuccess: () => {
@@ -231,10 +277,10 @@ export function CertificadoFormModal({
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="bg-blue-50 border border-blue-200 rounded p-2 text-[11px] text-blue-900">
           Para certificados <strong>A1</strong>, faça upload do arquivo .pfx
-          e digite a senha pra <strong>validar</strong>. Os campos
-          (titular, CNPJ, emissor, validade) preenchem automaticamente. O
-          arquivo vai pra bucket privado; a <strong>senha NÃO é
-          armazenada</strong> — digitada novamente em cada uso.
+          e digite a senha. Os campos (titular, CNPJ, emissor, validade)
+          preenchem automaticamente ao validar. Arquivo vai pra bucket
+          privado; senha é <strong>encriptada AES-256-GCM</strong> e
+          guardada pra automações (cron NFSe scrape, etc.).
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -310,7 +356,7 @@ export function CertificadoFormModal({
                   </button>
                 </div>
               </Field>
-              <Field label="Senha do certificado" hint="Não fica armazenada">
+              <Field label="Senha do certificado" hint="Encriptada AES-256-GCM">
                 <input
                   type="password"
                   className={inputClass}
