@@ -33,16 +33,17 @@ npm run dev                  # http://localhost:3003
 
 ### Equipe (perfil Admin / Contador / Assistente)
 
-1. **`/inicio`** — dashboard com próximos vencimentos e cards-resumo
-2. **`/clientes`** — lista; clica num cliente → `/clientes/[id]` (visão 360 com obrigações, faturas, documentos, contatos)
+1. **`/modulos`** — página principal depois do login: áreas do sistema em cartões, com pendências
+2. **`/inicio`** — dashboard com próximos vencimentos e cards-resumo
+3. **`/clientes`** — lista; clica num cliente → `/clientes/[id]` (visão 360 com obrigações, faturas, documentos, contatos)
    - Cadastro novo: auto-busca CNPJ (BrasilAPI) e CEP (ViaCEP)
-3. **`/obrigacoes`** — lista filtrada + gerador mensal (cria obrigações em lote);
+4. **`/obrigacoes`** — lista filtrada + gerador mensal (cria obrigações em lote);
    `/obrigacoes/calendario` mostra grid mensal; `/obrigacoes/[id]` tem thread de comentários
-4. **`/documentos`** — lista + upload drag-and-drop (Storage privado por pasta de cliente)
-5. **`/honorarios`** — faturas + gerador mensal a partir do honorário cadastrado
-6. **`/produtividade`** — % entregue no prazo, ranking por responsável, clientes críticos
-7. **`/usuarios`** — gestão de logins (Admin) — usa `signUp()` + restauração de sessão; tem reset de senha pelo admin (Edge Function)
-8. **`/config`** — dados do escritório, upload de logo, alertas por e-mail
+5. **`/documentos`** — lista + upload drag-and-drop (Storage privado por pasta de cliente)
+6. **`/honorarios`** — faturas + gerador mensal a partir do honorário cadastrado
+7. **`/produtividade`** — % entregue no prazo, ranking por responsável, clientes críticos
+8. **`/usuarios`** — gestão de logins (Admin) — usa `signUp()` + restauração de sessão; tem reset de senha pelo admin (Edge Function)
+9. **`/config`** — dados do escritório, upload de logo, alertas por e-mail
 
 ### Portal cliente (perfil Cliente, vinculado a 1 `id_cliente`)
 

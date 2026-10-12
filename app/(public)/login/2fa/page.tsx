@@ -21,7 +21,7 @@ export default function LoginTwoFactorPage() {
 function TwoFactorForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/inicio";
+  const next = params.get("next") || "/modulos";
   const { data: cfg } = useConfiguracao();
   const setUser = useUserStore((s) => s.setUser);
 

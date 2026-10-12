@@ -12,7 +12,7 @@ export default async function PortalLayout({
 
   const usuario = await getUsuarioPerfil();
   if (!usuario || usuario.perfil !== "Cliente" || !usuario.id_cliente) {
-    redirect("/inicio");
+    redirect("/modulos");
   }
 
   return <AppShell variant="portal">{children}</AppShell>;
