@@ -23,7 +23,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/inicio";
+  const next = params.get("next") || "/modulos";
   const setUser = useUserStore((s) => s.setUser);
   const { data: cfg } = useConfiguracao();
 
@@ -90,7 +90,7 @@ function LoginForm() {
         usuario.perfil === "Cliente"
           ? "/portal"
           : next.startsWith("/portal")
-          ? "/inicio"
+          ? "/modulos"
           : next;
       router.push(destino);
     } catch (e) {

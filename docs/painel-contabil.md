@@ -81,7 +81,7 @@ O login é por e-mail e senha (Supabase Auth), com verificação em duas etapas 
 - `(portal)`: área do cliente.
 - `/f/[token]`: formulários públicos do módulo Gestão, sem login.
 
-Um usuário Cliente que tenta abrir a área interna é levado para `/portal`. Visitantes sem login são levados para `/login`.
+Depois do login, a equipe cai em `/modulos` e o Cliente em `/portal`. Um usuário Cliente que tenta abrir a área interna é levado para `/portal`, e um usuário da equipe que abre o portal é levado para `/modulos`. Visitantes sem login são levados para `/login`.
 
 ---
 
@@ -91,16 +91,16 @@ O menu lateral agrupa os módulos por área. A ordem abaixo segue o menu.
 
 ### 3.1 Itens soltos do menu
 
-**Início (`/inicio`).** Painel com os números do escritório: clientes ativos, obrigações pendentes e atrasadas, documentos recebidos e faturas em aberto, além de um gráfico de receitas e despesas dos últimos meses. É a primeira tela da equipe.
+**Início (`/inicio`).** Painel com os números do escritório: clientes ativos, obrigações pendentes e atrasadas, documentos recebidos e faturas em aberto, além de um gráfico de receitas e despesas dos últimos meses. A tela de Módulos leva para cá pelo botão "Visão geral".
 
-**Módulos (`/modulos`) — novo em outubro/2026.** Tela cheia, sem o menu lateral, com as áreas do sistema em cartões grandes. Fica no grupo de rotas `(hub)`, que tem a mesma checagem de login da área interna.
+**Módulos (`/modulos`) — novo em outubro/2026.** É a página principal da equipe: o login, o endereço raiz `/` e o atalho do app instalado levam para cá. Tela cheia, sem o menu lateral, com as áreas do sistema em cartões grandes. Fica no grupo de rotas `(hub)`, que tem a mesma checagem de login da área interna.
 - **Nível 1 (`/modulos`):** um cartão por área (Contábil, RH / DP, Fiscal, Financeiro e gestão) e atalhos diretos para Clientes, Gestão, Integrações e Logs (só Admin).
 - **Nível 2 (`/modulos?c=<área>`):** um cartão por módulo da área. A área fica na URL, então o botão Voltar do navegador funciona e o link pode ser compartilhado.
 - **Contagens** (`lib/hooks/useHubStats.ts`): total, pendentes e novos nos últimos 30 dias. Passam pelo RLS do usuário, e uma consulta que falha só deixa aquele cartão sem número.
 - **Pendências por módulo:** obrigações pendentes ou atrasadas, documentos recebidos ou em análise, faturas abertas ou atrasadas, sessões e-CAC com pendência, movimentos bancários não conciliados e NF-e sem manifestação.
 - **Ordem:** dentro de cada área, os módulos com mais pendências vêm primeiro.
 - **Cabeçalho:** saudação com o primeiro nome, data por extenso e botões Visão geral, Sistema (só Admin) e Sair.
-- **Acesso:** o item **Módulos** do menu lateral leva para lá. O login continua levando para `/inicio`. O perfil Cliente é levado para `/portal`.
+- **Acesso:** é a primeira tela depois do login e o primeiro item do menu lateral. O perfil Cliente é levado para `/portal`.
 
 **Clientes (`/clientes`).** Cadastro completo da carteira: pessoa jurídica ou física, razão social, CNPJ/CPF, regime tributário (Simples, Presumido, Real, MEI, Doméstico, Rural), anexo do Simples, atividade, honorário mensal, dia de vencimento, endereço, responsável e contatos.
 - Preenche os dados pelo CNPJ (BrasilAPI) e o endereço pelo CEP (ViaCEP).

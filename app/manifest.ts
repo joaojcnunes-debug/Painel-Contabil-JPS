@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "JSP",
     description:
       "Sistema interno e portal cliente da JSP Contabilidade Personalizada",
-    start_url: "/inicio",
+    start_url: "/modulos",
     scope: "/",
     display: "standalone",
     orientation: "any",

@@ -77,8 +77,8 @@ const group = (g: Group): Entry => ({ kind: "group", group: g });
 // SPED→Fiscal, NF-e→Contábil, etc). A tela-índice /integracoes fica em Sistema
 // como "visão geral" pra quem quer ver os cards agregados.
 const ENTRIES_INTERNO: Entry[] = [
-  item({ href: "/inicio", label: "Início", icon: LayoutDashboard }),
   item({ href: "/modulos", label: "Módulos", icon: LayoutGrid }),
+  item({ href: "/inicio", label: "Início", icon: LayoutDashboard }),
   item({ href: "/clientes", label: "Clientes", icon: Users }),
   group({
     key: "contabil",
