@@ -53,7 +53,7 @@ O Painel Contábil JPS é o sistema interno do escritório **JSP Contabilidade P
 
 | Item | Quantidade |
 |---|---|
-| Telas (páginas) | 65 |
+| Telas (páginas) | 66 |
 | Rotas de API | 16 |
 | Migrations | 35 (+ `schema.sql` base) |
 | Tabelas | 56 + 1 view |
@@ -76,6 +76,7 @@ O login é por e-mail e senha (Supabase Auth), com verificação em duas etapas 
 **Grupos de rotas:**
 - `(public)`: login, verificação em duas etapas, "esqueci a senha" e redefinição.
 - `(app)`: área interna da equipe.
+- `(hub)`: tela de módulos (`/modulos`), da equipe, em página cheia.
 - `(portal)`: área do cliente.
 - `/f/[token]`: formulários públicos do módulo Gestão, sem login.
 
@@ -90,6 +91,15 @@ O menu lateral agrupa os módulos por área. A ordem abaixo segue o menu.
 ### 3.1 Itens soltos do menu
 
 **Início (`/inicio`).** Painel com os números do escritório: clientes ativos, obrigações pendentes e atrasadas, documentos recebidos e faturas em aberto, além de um gráfico de receitas e despesas dos últimos meses. É a primeira tela da equipe.
+
+**Módulos (`/modulos`) — novo em outubro/2026.** Tela cheia, sem o menu lateral, com as áreas do sistema em cartões grandes. Fica no grupo de rotas `(hub)`, que tem a mesma checagem de login da área interna.
+- **Nível 1 (`/modulos`):** um cartão por área (Contábil, RH / DP, Fiscal, Financeiro e gestão) e atalhos diretos para Clientes, Gestão, Integrações e Logs (só Admin).
+- **Nível 2 (`/modulos?c=<área>`):** um cartão por módulo da área. A área fica na URL, então o botão Voltar do navegador funciona e o link pode ser compartilhado.
+- **Contagens** (`lib/hooks/useHubStats.ts`): total, pendentes e novos nos últimos 30 dias. Passam pelo RLS do usuário, e uma consulta que falha só deixa aquele cartão sem número.
+- **Pendências por módulo:** obrigações pendentes ou atrasadas, documentos recebidos ou em análise, faturas abertas ou atrasadas, sessões e-CAC com pendência, movimentos bancários não conciliados e NF-e sem manifestação.
+- **Ordem:** dentro de cada área, os módulos com mais pendências vêm primeiro.
+- **Cabeçalho:** saudação com o primeiro nome, data por extenso e botões Visão geral, Sistema (só Admin) e Sair.
+- **Acesso:** o item **Módulos** do menu lateral leva para lá. O login continua levando para `/inicio`. O perfil Cliente é levado para `/portal`.
 
 **Clientes (`/clientes`).** Cadastro completo da carteira: pessoa jurídica ou física, razão social, CNPJ/CPF, regime tributário (Simples, Presumido, Real, MEI, Doméstico, Rural), anexo do Simples, atividade, honorário mensal, dia de vencimento, endereço, responsável e contatos.
 - Preenche os dados pelo CNPJ (BrasilAPI) e o endereço pelo CEP (ViaCEP).
@@ -429,6 +439,7 @@ Com cliente ativo e certificado A1 cadastrado, a coleta de NFS-e da madrugada se
 - **O município precisa usar o Emissor Nacional.** O Rio aderiu em 01/01/2026. Em municípios que não migraram, as notas ficam só no portal municipal (integração específica ou upload manual).
 - **Só certificado A1.** O A3 (token físico) não pode ser automatizado. O cliente precisa fornecer um A1 (`.pfx`) e a senha.
 - **Rotinas sem agendamento.** Ver 4.2: atrasos, alertas, relatório mensal e recorrentes dependem do disparo manual em Configurações.
+- **Conciliação sem tabela em produção.** A tabela `banco_movimentos` (migration 09) não existe no banco de produção (conferido em 12/10/2026), então a Conciliação não consegue gravar extratos. Na tela de Módulos, o cartão dela aparece sem contagem. Para corrigir, aplique `09_conciliacao_bancaria.sql`.
 
 ---
 
@@ -485,6 +496,7 @@ npm run dev                     # http://localhost:3003
 | Pasta | Conteúdo |
 |---|---|
 | `app/(public)`, `app/(app)`, `app/(portal)` | Telas por área (seção 2) |
+| `app/(hub)` | Tela de módulos em página cheia, sem o menu lateral |
 | `app/api` | Rotas de API (seção 7) |
 | `app/f/[token]` | Formulários públicos da Gestão |
 | `components/<módulo>` | Componentes de cada módulo; `components/ui` tem os genéricos (Modal, Button, Field, ExportCsvButton) |

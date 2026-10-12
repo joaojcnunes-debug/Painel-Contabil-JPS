@@ -43,6 +43,7 @@ import {
   Activity,
   ClipboardList,
   Coins,
+  LayoutGrid,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ const group = (g: Group): Entry => ({ kind: "group", group: g });
 // como "visão geral" pra quem quer ver os cards agregados.
 const ENTRIES_INTERNO: Entry[] = [
   item({ href: "/inicio", label: "Início", icon: LayoutDashboard }),
+  item({ href: "/modulos", label: "Módulos", icon: LayoutGrid }),
   item({ href: "/clientes", label: "Clientes", icon: Users }),
   group({
     key: "contabil",
