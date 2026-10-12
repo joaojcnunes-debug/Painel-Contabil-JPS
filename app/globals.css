@@ -54,3 +54,40 @@ body {
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Hub de módulos (/modulos) ───────────────────────────────── */
+.glass {
+  background: #ffffff;
+  border: 1px solid var(--color-card-border, #E3DBC4);
+  box-shadow: 0 12px 30px -16px rgba(42, 48, 20, 0.28), 0 2px 6px rgba(42, 48, 20, 0.08);
+}
+.tilt-3d {
+  transform-style: preserve-3d;
+  transition: transform 280ms cubic-bezier(.2, .7, .3, 1), box-shadow 280ms;
+  will-change: transform;
+}
+.tilt-3d:hover {
+  transform: perspective(900px) translateY(-4px) rotateX(3deg) rotateY(-3deg) scale(1.012);
+  box-shadow: 0 24px 48px -20px rgba(42, 48, 20, 0.34), 0 6px 16px rgba(42, 48, 20, 0.12);
+}
+.sheen { position: relative; overflow: hidden; isolation: isolate; }
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.45) 50%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 750ms ease;
+}
+.sheen:hover::after { transform: translateX(130%); }
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal-up { animation: reveal-up 520ms cubic-bezier(.2, .7, .3, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-up { animation: none; }
+  .tilt-3d, .tilt-3d:hover { transition: none; transform: none; }
+  .sheen::after { transition: none; }
+}
