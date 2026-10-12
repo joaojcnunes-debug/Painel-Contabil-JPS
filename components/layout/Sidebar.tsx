@@ -42,6 +42,7 @@ import {
   FileLock2,
   Activity,
   ClipboardList,
+  Coins,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -111,6 +112,7 @@ const ENTRIES_INTERNO: Entry[] = [
     items: [
       { href: "/folha", label: "Folha", icon: Users2 },
       { href: "/pro-labore", label: "Pró-labore", icon: Briefcase },
+      { href: "/distribuicao-lucros", label: "Distribuição de lucros", icon: Coins },
       { href: "/decimo-terceiro", label: "13º salário", icon: Gift },
       { href: "/ferias", label: "Férias", icon: Plane },
       { href: "/integracoes/esocial", label: "eSocial", icon: UserCog },

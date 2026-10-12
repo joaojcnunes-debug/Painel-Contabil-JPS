@@ -550,6 +550,20 @@ export interface ProLaborePagamento {
   updated_at: string | null;
 }
 
+export interface DistribuicaoLucro {
+  id_distribuicao: string;
+  id_cliente: string;
+  id_socio: string;
+  nome_socio: string;
+  cpf_socio: string | null;
+  data_distribuicao: string;      // YYYY-MM-DD
+  valor: number;
+  forma_pagamento: string | null;
+  observacoes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface ApuracaoSimples {
   id_apuracao: string;
   id_cliente: string;
@@ -625,6 +639,7 @@ export interface Database {
       folha_itens: TableShape<FolhaItem>;
       socios: TableShape<Socio>;
       pro_labore_pagamentos: TableShape<ProLaborePagamento>;
+      distribuicoes_lucros: TableShape<DistribuicaoLucro>;
       decimos_terceiros: TableShape<DecimoTerceiro>;
       notas_fiscais: TableShape<NotaFiscal>;
       ferias: TableShape<Ferias>;
