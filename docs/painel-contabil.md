@@ -6,7 +6,8 @@
 
 Esta versão substitui a 1.0 (julho/2026, `docs/painel-contabil.pdf`). O que mudou desde então:
 - novo módulo **Distribuição de lucros** (seção 3.3);
-- a seção de automações (4) foi revisada contra o banco: algumas funções que a versão 1.0 dava como automáticas só rodam quando alguém as dispara.
+- nova tela **Módulos** (seção 3.1);
+- a seção de automações (4) foi revisada contra o banco. Cinco funções que a versão 1.0 dava como automáticas não tinham agendamento; elas passaram a ser agendadas em 12/10/2026 (migration 36).
 
 ## Sumário
 
@@ -55,10 +56,10 @@ O Painel Contábil JPS é o sistema interno do escritório **JSP Contabilidade P
 |---|---|
 | Telas (páginas) | 66 |
 | Rotas de API | 16 |
-| Migrations | 35 (+ `schema.sql` base) |
+| Migrations | 36 (+ `schema.sql` base) |
 | Tabelas | 56 + 1 view |
 | Edge Functions | 11 |
-| Rotinas agendadas | 3 no banco (pg_cron) + 1 no GitHub Actions |
+| Rotinas agendadas | 8 no banco (pg_cron) + 1 no GitHub Actions |
 
 ---
 
@@ -231,28 +232,25 @@ O menu lateral agrupa os módulos por área. A ordem abaixo segue o menu.
 
 ### 4.1 O que roda sozinho
 
-Conferido no banco (`cron.job`) e no GitHub em 12/10/2026:
+Conferido no banco (`cron.job`) e no GitHub em 12/10/2026. Horários de Brasília.
 
 | Rotina | Onde | Horário | O que faz |
 |---|---|---|---|
-| `alertas-diarios-equipe` | pg_cron → `enviar-alertas-diarios-equipe` | Seg a sex, 11h UTC (8h de Brasília) | Resumo diário da Gestão para a equipe, por e-mail |
-| `resumo-nfe-diario` | pg_cron → `invoke_edge_resumo_nfe_diario()` → `enviar-resumo-nfe-diario` | Todo dia, 11h UTC (8h de Brasília) | Resumo das NF-e capturadas, por e-mail |
-| `gestao-automacao-prazos` | pg_cron → `gestao_automacao_prazos()` | Todo dia, 6h05 UTC (3h05 de Brasília) | Roda as automações da Gestão ligadas a prazo |
-| NFS-e scrape | GitHub Actions (`nfse-scrape-daily.yml`) | Todo dia, 6h UTC (3h de Brasília) | Coleta as NFS-e emitidas no portal nacional (seção 5) |
+| `gestao-automacao-prazos` | pg_cron → `gestao_automacao_prazos()` | Todo dia, 3h05 | Roda as automações da Gestão ligadas a prazo |
+| NFS-e scrape | GitHub Actions (`nfse-scrape-daily.yml`) | Todo dia, 3h | Coleta as NFS-e emitidas no portal nacional (seção 5) |
+| `atualizar-status-vencidos` | pg_cron → Edge Function | Todo dia, 6h | Marca obrigações e faturas vencidas como atrasadas |
+| `gerar-recorrentes-mes` | pg_cron → Edge Function | Dia 1, 6h | Cria os lançamentos recorrentes do mês |
+| `alertas-diarios-equipe` | pg_cron → `enviar-alertas-diarios-equipe` | Seg a sex, 8h | Resumo diário da Gestão para a equipe, por e-mail |
+| `resumo-nfe-diario` | pg_cron → `invoke_edge_resumo_nfe_diario()` | Todo dia, 8h | Resumo das NF-e capturadas, por e-mail |
+| `enviar-alertas-vencimento` | pg_cron → Edge Function | Seg a sex, 8h15 | E-mail ao cliente com obrigações vencendo nos próximos dias (`ALERTA_DIAS`, padrão 3) |
+| `enviar-alertas-faturas` | pg_cron → Edge Function | Seg a sex, 8h30 | E-mail de cobrança de honorários vencendo ou vencidos |
+| `enviar-relatorio-mensal` | pg_cron → Edge Function | Dia 5, 9h | Relatório do mês anterior para cada cliente ativo |
 
-### 4.2 O que só roda quando alguém dispara
+### 4.2 Como os agendamentos chamam as funções
 
-As funções abaixo existem e funcionam, mas **não têm agendamento no banco**. Hoje elas só rodam pelos botões da tela **Configurações**:
+Os cinco agendamentos da migration 36 seguem o padrão de `invoke_edge_resumo_nfe_diario()`: um `net.http_post` para a Edge Function, com a chave anônima lida do Vault (secret `supabase_anon_key`). As funções continuam podendo ser disparadas à mão pelos botões de **Configurações**, e todas aceitam `{"dry_run": true}` para simular sem gravar nem enviar.
 
-| Função | O que faz |
-|---|---|
-| `atualizar-status-vencidos` | Marca obrigações e faturas vencidas como atrasadas |
-| `enviar-alertas-vencimento` | E-mail de obrigações perto do vencimento |
-| `enviar-alertas-faturas` | E-mail de cobrança de honorários |
-| `enviar-relatorio-mensal` | Relatório mensal para o cliente |
-| `gerar-recorrentes-mes` | Cria os lançamentos recorrentes do mês |
-
-A versão 1.0 desta documentação dizia que essas cinco rodavam por cron diário ou mensal. Para que voltem a rodar sozinhas, é preciso criar os agendamentos no pg_cron, seguindo o modelo de `alertas-diarios-equipe`.
+Os e-mails para clientes vão para o contato principal com e-mail; se não houver, para qualquer contato com e-mail; se não houver, para o usuário Cliente vinculado. Cliente sem nenhum e-mail é pulado. Para desligar os cinco agendamentos, rode `36_cron_rotinas_rollback.sql`.
 
 ### 4.3 Funções chamadas sob demanda
 
@@ -438,7 +436,6 @@ Com cliente ativo e certificado A1 cadastrado, a coleta de NFS-e da madrugada se
 - **O ADN não devolve notas emitidas.** A API oficial só traz as notas em que o CNPJ é tomador. É uma limitação da fonte, contornada pela coleta no portal.
 - **O município precisa usar o Emissor Nacional.** O Rio aderiu em 01/01/2026. Em municípios que não migraram, as notas ficam só no portal municipal (integração específica ou upload manual).
 - **Só certificado A1.** O A3 (token físico) não pode ser automatizado. O cliente precisa fornecer um A1 (`.pfx`) e a senha.
-- **Rotinas sem agendamento.** Ver 4.2: atrasos, alertas, relatório mensal e recorrentes dependem do disparo manual em Configurações.
 - **Conciliação sem tabela em produção.** A tabela `banco_movimentos` (migration 09) não existe no banco de produção (conferido em 12/10/2026), então a Conciliação não consegue gravar extratos. Na tela de Módulos, o cartão dela aparece sem contagem. Para corrigir, aplique `09_conciliacao_bancaria.sql`.
 
 ---
